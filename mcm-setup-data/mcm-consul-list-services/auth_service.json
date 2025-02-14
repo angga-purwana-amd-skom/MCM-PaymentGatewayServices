@@ -1,0 +1,16 @@
+{
+    "services": [
+      {
+        "ID": "auth_service",
+        "Name": "token",
+        "Address": "mcm-auth-service",
+        "Port": 8086
+      },{
+        "ID": "auth_service_secure-data",
+        "Name": "secure-data",
+        "Address": "mcm-auth-service",
+        "Port": 8086
+      }
+    ]
+}
+  

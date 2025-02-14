@@ -1,0 +1,31 @@
+version: '2'
+
+services:
+  db:
+    container_name: db  
+    image: postgres:11
+    restart: always
+    environment:
+      POSTGRES_USER: user123    
+      POSTGRES_PASSWORD: sp123yes
+      POSTGRES_DB: mcm_paygate_db      
+    volumes:
+      - pgdata:/var/lib/postgresql/data 
+    networks:
+      - my_network      
+ 
+  adminer:
+    container_name: adminer
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    networks:
+      - my_network
+
+volumes:
+  pgdata:  # volume yang digunakan untuk persistensi data PostgreSQL
+
+networks:
+  my_network:  # definisi jaringan yang digunakan
+    driver: bridge

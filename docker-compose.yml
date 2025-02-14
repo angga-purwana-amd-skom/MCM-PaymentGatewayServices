@@ -1,0 +1,80 @@
+version: '2'
+
+services:
+  mcm-auth-service:
+    build:
+      context: ./mcm-auth-service
+      dockerfile: Dockerfile
+    image: mcm-auth-service
+    container_name: mcm-auth-service
+    restart: always
+    networks:
+      - my_network
+    ports:
+      - "8086:8086"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: "31e5824a050a8598bd9ea805ea98987100fec9e71a38d9ed100c9ebe5380f823ee43390813393946e28b9ba925646e797cb023d3ea560762e0cf4b427fa412b26b650803ac0c65814b0b7b94b2919f9ff646a9a138f0f11a7265d63e011980e1517719429e457943c86c049b72387847fb331a65be2448c8ff0142f352a303a26af2bf61d5b0f67e19aa2af8b39247296808dc0b91b9c78919481aa59c9c8f69d38671923f4214dad971a35012a5600ddc17e2d8ae3ba0f57a071dcfb840a0b723f400957b76b3de0f87e682eb906d6beabeced66414026afe296e9c36cb6a8548451a32594e5f6dd447337ae92c8897660504f3d3849b62e7a18fdcf3ceb0e1"
+      JWT_ALGORITHM: "HS256"
+      TOKEN_EXPIRATION_MINUTES: "30"
+      HOST: "0.0.0.0"
+      PORT: "8086"
+
+  mcm-api-gateway:
+    build:
+      context: ./mcm-api-gateway
+      dockerfile: Dockerfile  
+    container_name: mcm-api-gateway
+    image: mcm-api-gateway
+    restart: unless-stopped
+    networks:
+      - my_network
+    ports:
+      - "8081:8081"
+    environment:
+      - CONSUL_URL=${CONSUL_URL}
+      - HOST=0.0.0.0
+      - PORT=8081
+    stdin_open: true
+    tty: true
+    remove: true
+
+  snapbi-sample-response:
+    build: 
+      context: ./snapbi-sample-response
+      dockerfile: Dockerfile
+    container_name: snapbi-sample-response
+    environment:
+      - ETCD_HOST=etcd_snapbi
+      - ETCD_PORT=2379
+    depends_on:
+      - etcd_snapbi
+    ports:
+      - "8000:8000"    
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.0
+    container_name: etcd_snapbi
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd_snapbi:2379
+    ports:
+      - "2379:2379"
+
+  consul_server:
+    image: hashicorp/consul
+    container_name: consul_server
+    networks:
+      - my_network
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+    command: ["agent", "-server", "-bootstrap", "-ui", "-client=0.0.0.0"]
+    restart: unless-stopped
+
+
+networks:
+  my_network:
+    external: true
+    driver: bridge    
