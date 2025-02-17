@@ -4,9 +4,9 @@ Angga Purwana, AMd., S.Kom.
 """
 
 from fastapi import FastAPI
-from routes import credential
-import models
-from database import engine
+from api.routes import router
+import models.models
+from core.database import engine
 
 # Inisialisasi tabel database
 async def init_db():
@@ -21,4 +21,4 @@ async def startup():
     await init_db()
 
 # Tambahkan route credential
-app.include_router(credential.router)
+app.include_router(routes.router)

@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from config import DATABASE_URL
+from core.config import DATABASE_URL
 
 # Buat engine untuk PostgreSQL (gunakan asyncpg)
 engine = create_async_engine(DATABASE_URL, future=True, echo=True)
