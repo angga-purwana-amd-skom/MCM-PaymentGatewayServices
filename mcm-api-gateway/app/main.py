@@ -4,53 +4,69 @@ Powered by FastAPI, starlette, httpx
 Presented by Angga Purwana, AMd., S.Kom.
 """
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, APIRouter, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 import httpx
 import asyncio
-from config import CONSUL_URL , DEBUG_MODE
+import random
+import logging
+from app.core.config import CONSUL_URL, DEBUG_MODE
+from app.api.routes import router
+
+# Konfigurasi logging
+logging.basicConfig(level=logging.DEBUG if DEBUG_MODE else logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="FastAPI Payment API Gateway",
-    description="A Payment API Gateway with Consul Service Discovery.",
-    version="1.0.0"
+    description="A Payment API Gateway with Consul Service Discovery and Load Balancing.",
+    version="1.1.0"
 )
 
 async def get_service_url(service_name: str) -> str:
-    """Mengambil alamat service dari Consul."""
+    """Mengambil alamat service dari Consul dengan load balancing."""
     async with httpx.AsyncClient() as client:
-        if DEBUG_MODE:
-            print(f"DEBUG: consul url svc=> {CONSUL_URL}{service_name}")        
-        response = await client.get(f"{CONSUL_URL}{service_name}")
-        
-        if response.status_code == 200 and response.json():
-            service = response.json()[0]  # Ambil instance pertama jika ada banyak
-            return f"http://{service['ServiceAddress']}:{service['ServicePort']}/{service_name}"
+        try:
+            consul_endpoint = f"{CONSUL_URL}{service_name}"
+            logger.debug(f"Fetching service from Consul: {consul_endpoint}")
 
-    return None
+            response = await client.get(consul_endpoint)
+
+            if response.status_code == 200 and response.json():
+                services = response.json()
+                chosen_service = random.choice(services)  # Load balancing (round-robin dapat diterapkan juga)
+                service_url = f"http://{chosen_service['ServiceAddress']}:{chosen_service['ServicePort']}/{service_name}"
+                logger.debug(f"Selected service instance: {service_url}")
+                return service_url
+            else:
+                logger.error(f"No available instances for service: {service_name}")
+                return None
+        except Exception as e:
+            logger.error(f"Error contacting Consul: {e}")
+            return None
 
 class ProxyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path.lstrip("/")
         
-        # Ambil service dari Consul
         service_url = await get_service_url(path)
-        if DEBUG_MODE:
-            print(f"DEBUG: service_url= {service_url}")       
-        
         if not service_url:
             return JSONResponse({"error": "Service not found"}, status_code=404)
 
-        async with httpx.AsyncClient() as client:
-            response = await client.request(
-                method=request.method,
-                url=service_url,
-                headers=request.headers.raw,
-                content=await request.body(),
-            )
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.request(
+                    method=request.method,
+                    url=service_url,
+                    headers=dict(request.headers),
+                    content=await request.body(),
+                )
+                return JSONResponse(content=response.json(), status_code=response.status_code)
+        except httpx.HTTPError as e:
+            logger.error(f"Service request error: {e}")
+            return JSONResponse({"error": "Service request failed"}, status_code=500)
 
-        return JSONResponse(content=response.json(), status_code=response.status_code)
-
-# Tambahkan middleware proxy
 app.add_middleware(ProxyMiddleware)
+app.include_router(router)
+

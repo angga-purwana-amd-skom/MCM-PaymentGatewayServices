@@ -3,7 +3,7 @@ from passlib.hash import bcrypt
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from .models import MCMClient
+from app.models.models import MCMClient
 
 
 

@@ -1,0 +1,11 @@
+{
+    "services": [
+      {
+        "ID": "idgen_service",
+        "Name": "generate",
+        "Address": "mcm-client_id-gen",
+        "Port": 8085
+      }
+    ]
+}
+  

@@ -1,18 +1,7 @@
-version: '3.8'
-services:
-  db:
-    image: postgres:13
-    restart: always
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: mcm_paygate_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+version: '2'
 
   mcm-client_id-gen:
+    container_name: mcm-client_id-gen
     build: .
     depends_on:
       - db
@@ -22,5 +11,3 @@ services:
     ports:
       - "8081:8081"
 
-volumes:
-  postgres_data:

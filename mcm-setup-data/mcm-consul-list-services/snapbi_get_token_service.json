@@ -1,0 +1,11 @@
+{
+    "services": [
+      {
+        "ID": "snapbi_get_token_service",
+        "Name": "SnapBIGetTokenByApi",
+        "Address": "mcm-snapbi-get-token",
+        "Port": 8088
+      }
+    ]
+}
+  

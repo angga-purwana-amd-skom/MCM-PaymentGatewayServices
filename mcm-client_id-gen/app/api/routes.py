@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from core.database import get_db
-from services.services import generate_credentials
+from app.core.database import get_db
+from app.services.services import generate_credentials
 
 router = APIRouter()
 

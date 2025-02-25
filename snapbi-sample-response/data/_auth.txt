@@ -1,0 +1,42 @@
+AUTHENTICATION
+
+| HTTP Code | Response Code | Response Message                         | Description                                                 |
+|-----------|--------------|-----------------------------------------|-------------------------------------------------------------|
+| 200       | 2007300      | Success                                 | Success                                                     |
+| 401       | 4017300      | Unauthorized. Invalid {field}           | Transaction cannot be processed because signature value is invalid |
+|           |              |                                         | X-CLIENT-KEY, X-SIGNATURE, X-TIMESTAMP                      |
+| 400       | 4007302      | Invalid Mandatory Field {field}         | If {field} value is null or field not declared:             |
+|           |              |                                         | X-CLIENT-KEY, X-SIGNATURE, X-TIMESTAMP                      |
+| 400       | 4007302      | Unsupported grant_type                  | -                                                           |
+| 500       | 5007301      | Internal Server Error                   | -                                                           |
+| 504       | 5047300      | Timeout                                 | -                                                           |
+
+
+2007300
+{
+"responseCode":"2007300"
+"responseMessage":"Success",
+"accessToken":
+"eyJraWQiOiJzc29zIiwiYWxnIjoiUlM1MTIifQ.eyJzdWIiOiJiOTU3YWE0NC04ZWZmLTQ0NjYtOWEyMy0xNDg5MzgyOWExZj
+AiLCJhdWQiOiJqd3QtYXVkIiwiY2xpZW50SWQiOiI5YjZkYjRmMy1iMzYyLTQ5YzEtOTZhZC1jNjMyNTQxNjI5ZTIiLCJpc3MiO
+iJqd3QtaXNzdWVyIiwicGFydG5lcklkIjoiVUFUQ09SUEFZIiwiZXhwIjoxNTk1MTY3MTQ5LCJpYXQiOjE1ODkxNjcxNDl9.Zzac
+wbT08Ax7fMQDRwtaFxDz2dpn3cwz58tMI3QonysPXpr0bHRT6W8ZtI_Q0oTjm17A7NsHqwyadbpGPIq38Lw9h5G7kNGmpVzWKAYZZPQlTwuC7zxHdXYwBQXIs7qYD_
+wIiPQvYIqPwt6p390oBpUiZk7IsVQ_8ucmXbuBaa9-7uWuvdRL72AQr2cFn89Jjaz6fsQy92dapLAQo9iU7k3wgRk3bxQPQjIbbC-osg-OBzQ1Tyx-NuPaqg5Z0y4ccrVfR2Nv9-jt4wEYFdy4EFgLdj7XKmx8MexfGdtrt9Vn4mi5scCiNOGzEoSKqb27SwdAtdL-caOH7czCPwg",
+ "tokenType": "Bearer",
+ "expiresIn": "900"
+}
+
+4017300
+
+{
+"responseCode":"4017300"
+"responseMessage":"Unauthorized. Invalid {field}",
+"accessToken":
+"eyJraWQiOiJzc29zIiwiYWxnIjoiUlM1MTIifQ.eyJzdWIiOiJiOTU3YWE0NC04ZWZmLTQ0NjYtOWEyMy0xNDg5MzgyOWExZj
+AiLCJhdWQiOiJqd3QtYXVkIiwiY2xpZW50SWQiOiI5YjZkYjRmMy1iMzYyLTQ5YzEtOTZhZC1jNjMyNTQxNjI5ZTIiLCJpc3MiO
+iJqd3QtaXNzdWVyIiwicGFydG5lcklkIjoiVUFUQ09SUEFZIiwiZXhwIjoxNTk1MTY3MTQ5LCJpYXQiOjE1ODkxNjcxNDl9.Zzac
+wbT08Ax7fMQDRwtaFxDz2dpn3cwz58tMI3QonysPXpr0bHRT6W8ZtI_Q0oTjm17A7NsHqwyadbpGPIq38Lw9h5G7kNGmpVzWKAYZZPQlTwuC7zxHdXYwBQXIs7qYD_
+wIiPQvYIqPwt6p390oBpUiZk7IsVQ_8ucmXbuBaa9-7uWuvdRL72AQr2cFn89Jjaz6fsQy92dapLAQo9iU7k3wgRk3bxQPQjIbbC-osg-OBzQ1Tyx-NuPaqg5Z0y4ccrVfR2Nv9-jt4wEYFdy4EFgLdj7XKmx8MexfGdtrt9Vn4mi5scCiNOGzEoSKqb27SwdAtdL-caOH7czCPwg",
+ "tokenType": "Bearer",
+ "expiresIn": "900"
+}

@@ -1,0 +1,15 @@
+version: '2'
+services:
+  snapbi-sample-response:
+    build: .
+    container_name: snapbi-sample-response     
+    networks:
+      - my_network    
+    environment:
+      DATABASE_URL: postgresql+asyncpg://user123:sp123yes@db:5432/mcm_paygate_db
+    ports:
+      - "8087:8087"
+
+networks:
+  my_network:
+    external: true  # Use existing network instead of creating a new one

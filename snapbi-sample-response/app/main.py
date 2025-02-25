@@ -1,7 +1,8 @@
 """
-Main Project of Client Id Gen - MCM - Microservices.
+Main Project of SNAP BI SAMPLE RESPONSE - MCM - Microservices.
 Angga Purwana, AMd., S.Kom.
 """
+
 
 from fastapi import FastAPI
 from app.api.routes import router
@@ -20,5 +21,5 @@ app = FastAPI()
 async def startup():
     await init_db()
 
-# Tambahkan route credential
-app.include_router(router)
+# Tambahkan route untuk API
+app.include_router(router, prefix="")

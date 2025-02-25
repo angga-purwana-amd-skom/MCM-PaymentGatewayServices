@@ -1,7 +1,7 @@
 from passlib.hash import bcrypt
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.models import Credential
+from app.models.models import Credential
 
 async def generate_credentials(db: AsyncSession):
     mcm_client_id = str(uuid.uuid4())

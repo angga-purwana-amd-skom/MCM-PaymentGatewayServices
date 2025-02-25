@@ -27,4 +27,4 @@ ENV CONSUL_URL=${CONSUL_URL}
 EXPOSE $PORT
 
 # Jalankan aplikasi menggunakan Uvicorn dengan konfigurasi dari ENV
-CMD ["sh", "-c", "uvicorn main:app --host $HOST --port $PORT"]
+CMD ["sh", "-c", "uvicorn app.main:app --host $HOST --port $PORT"]

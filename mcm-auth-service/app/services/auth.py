@@ -3,9 +3,9 @@ import jwt
 import datetime
 from fastapi import HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from .database import get_db
-from .services import validate_credentials
-from .config import SECRET_KEY, JWT_ALGORITHM, TOKEN_EXPIRATION_MINUTES
+from app.core.database import get_db
+from app.services.services import validate_credentials
+from app.core.config import SECRET_KEY, JWT_ALGORITHM, TOKEN_EXPIRATION_MINUTES
 
 async def generate_token(db: AsyncSession, mcm_client_id: str, mcm_client_secret: str):
     """ Generate JWT token if credentials are valid """
