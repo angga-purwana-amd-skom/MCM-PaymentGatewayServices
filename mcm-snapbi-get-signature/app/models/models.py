@@ -4,7 +4,7 @@ from sqlalchemy.orm import declarative_base, relationship
 import datetime
 
 Base = declarative_base()
-
+'''
 class MCMProcess(Base):
     __tablename__ = "mcm_processes"
 
@@ -13,7 +13,7 @@ class MCMProcess(Base):
     status = Column(String(50), nullable=False, default="started")  # Status proses bisnis
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
-
+'''
 class ApiCredential(Base):
     __tablename__ = "api_credentials"
 

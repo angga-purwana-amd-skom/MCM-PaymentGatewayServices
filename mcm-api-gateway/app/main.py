@@ -54,6 +54,11 @@ class ProxyMiddleware(BaseHTTPMiddleware):
         if not service_url:
             return JSONResponse({"error": "Service not found"}, status_code=404)
 
+        # Ambil query parameters jika ada
+        query_params = request.url.query
+        if query_params:
+            service_url = f"{service_url}?{query_params}"            
+
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.request(

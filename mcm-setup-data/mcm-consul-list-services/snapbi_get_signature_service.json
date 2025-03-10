@@ -1,0 +1,11 @@
+{
+    "services": [
+      {
+        "ID": "snapbi_get_signature_service",
+        "Name": "SnapBIGetTransactionSignature",
+        "Address": "mcm-snapbi-get-signature",
+        "Port": 8089
+      }
+    ]
+}
+  

@@ -25,7 +25,7 @@ async def get_snapbi_token(db: AsyncSession):
     if not endpoint:
         raise ValueError("SNAPBI Endpoint not found in database")
 
-    cred_result = await db.execute(select(ApiCredential).where(ApiCredential.endpoint_id == endpoint.id))
+    cred_result = await db.execute(select(ApiCredential).where(ApiCredential.api_name == 'SnapBI'))
     credentials = cred_result.scalar()
 
     if not credentials:
@@ -41,7 +41,8 @@ async def get_snapbi_token(db: AsyncSession):
     }
 
     payload = {"grantType": "client_credentials"}
-    url = f"https://{endpoint.host}:{endpoint.port}{endpoint.path}"
+    ep_port = "" if endpoint.port == "" else f":{endpoint.port}"
+    url = f"https://{endpoint.host}{ep_port}{endpoint.path}"
 
     async with aiohttp.ClientSession() as session:
         async with session.post(url, headers=headers, json=payload, ssl=not DEBUG_MODE) as response:

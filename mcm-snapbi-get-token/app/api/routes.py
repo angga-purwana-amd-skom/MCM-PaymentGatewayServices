@@ -31,7 +31,7 @@ async def get_snapbi_access_token(authorization: str = Header(None), db: AsyncSe
     endpoint = endpoint_result.scalar()
 
     if not endpoint:
-        raise HTTPException(status_code=500, detail="SNAPBI Endpoint not found")
+        raise HTTPException(status_code=500, detail="SNAPBI Get Token Endpoint not found")
 
     response = await get_snapbi_token(db)
     response = re.sub(r"[\x00-\x08\x0b-\x1f]", "", response)    
