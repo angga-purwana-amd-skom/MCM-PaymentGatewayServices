@@ -6,6 +6,8 @@ from app.core.database import get_db
 from app.models.models import SampleResponse
 from pydantic import BaseModel
 import sys
+import re
+import json
 
 router = APIRouter()
 
@@ -47,8 +49,11 @@ async def get_response(request: Request, db: AsyncSession = Depends(get_db)):
 
     if not response:
         raise HTTPException(status_code=404, detail="Response not found")
-    if response.http_code != '200':
-        status_code = int(response.http_code)  # Default ke 500 jika tidak ada status
-        return JSONResponse(status_code=status_code, content=response.sample_response)
-    return response.sample_response
+
+    sample_response = re.sub(r"[\x00-\x08\x0b-\x1f]", "", response.sample_response)    
+    sample_response = sample_response.replace('\n', '').replace('\r', '').strip()    
+    sample_response_json = json.loads(sample_response)          
+
+    status_code = int(response.http_code) if response.http_code.isdigit() else 500
+    return JSONResponse(status_code=status_code, content=sample_response_json)
    

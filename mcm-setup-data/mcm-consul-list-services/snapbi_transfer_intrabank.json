@@ -1,0 +1,11 @@
+{
+    "services": [
+      {
+        "ID": "snapbi_transfer_intrabank",
+        "Name": "SnapBITransferIntrabank",
+        "Address": "mcm-snapbi-transfer-intrabank",
+        "Port": 8093
+      }
+    ]
+}
+  

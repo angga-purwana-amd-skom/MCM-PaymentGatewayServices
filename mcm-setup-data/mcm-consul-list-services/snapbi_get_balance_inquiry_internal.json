@@ -1,0 +1,11 @@
+{
+    "services": [
+      {
+        "ID": "snapbi_get_balance_inquiry_internal",
+        "Name": "SnapBIGetBalanceInquiryInternal",
+        "Address": "mcm-snapbi-get-account-inquiry-internal",
+        "Port": 8091
+      }
+    ]
+}
+  

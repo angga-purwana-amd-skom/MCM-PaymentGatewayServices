@@ -1,0 +1,11 @@
+{
+    "services": [
+      {
+        "ID": "snapbi_get_balance_inquiry_external",
+        "Name": "SnapBIGetBalanceInquiryExternal",
+        "Address": "mcm-snapbi-get-account-inquiry-external",
+        "Port": 8092
+      }
+    ]
+}
+  

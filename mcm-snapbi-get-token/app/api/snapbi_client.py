@@ -64,5 +64,6 @@ async def get_snapbi_token(db: AsyncSession):
                 response_body=response_data_clean,
             )
             db.add(event_log)
+            await db.commit()
 
             return response_data

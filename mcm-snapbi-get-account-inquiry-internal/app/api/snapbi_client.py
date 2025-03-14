@@ -34,7 +34,7 @@ def minify_json(data: dict) -> str:
     """Menghapus spasi dan format dari JSON."""
     return json.dumps(data, separators=(",", ":"), sort_keys=True)
 
-async def call_snapbi_balance_inquiry(db: AsyncSession, access_token: str, request_body: dict, signature_data: str, timestamp_data: str, x_partner_id: str, channel_id: str,  endpoint_balance_inquiry: ApiEndpoint) -> str:
+async def call_snapbi_balance_inquiry_internal(db: AsyncSession, access_token: str, request_body: dict, signature_data: str, timestamp_data: str, x_partner_id: str, channel_id: str,  endpoint_balance_inquiry_internal: ApiEndpoint) -> str:
     """snapbi_balance_inquiry sesuai spesifikasi SnapBI."""
 
     
@@ -42,8 +42,8 @@ async def call_snapbi_balance_inquiry(db: AsyncSession, access_token: str, reque
     minified_body = minify_json(request_body)
     minified_body = json.loads(minified_body)
 
-    if not endpoint_balance_inquiry:
-        raise ValueError("SNAPBI Get Balance Inquiry Endpoint not found in database")
+    if not endpoint_balance_inquiry_internal:
+        raise ValueError("SNAPBI Get Balance Inquiry Internal Endpoint not found in database")
 
     x_external_id = generate_x_external_id()
     
@@ -58,8 +58,8 @@ async def call_snapbi_balance_inquiry(db: AsyncSession, access_token: str, reque
     }
     payload = minified_body
 
-    ep_port = "" if endpoint_balance_inquiry.port == "" else f":{endpoint_balance_inquiry.port}"
-    url = f"https://{endpoint_balance_inquiry.host}{ep_port}{endpoint_balance_inquiry.path}"
+    ep_port = "" if endpoint_balance_inquiry_internal.port == "" else f":{endpoint_balance_inquiry_internal.port}"
+    url = f"https://{endpoint_balance_inquiry_internal.host}{ep_port}{endpoint_balance_inquiry_internal.path}"
 
     async with aiohttp.ClientSession() as session:
         async with session.post(url, headers=headers, json=payload, ssl=not DEBUG_MODE) as response:
@@ -72,7 +72,7 @@ async def call_snapbi_balance_inquiry(db: AsyncSession, access_token: str, reque
 
             # Log event
             event_log = ApiEventLog(
-                endpoint_id=endpoint_balance_inquiry.id,
+                endpoint_id=endpoint_balance_inquiry_internal.id,
                 request_method="POST",
                 request_headers=headers,
                 request_body=payload,
