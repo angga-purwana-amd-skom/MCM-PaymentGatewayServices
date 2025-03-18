@@ -34,7 +34,7 @@ def minify_json(data: dict) -> str:
     """Menghapus spasi dan format dari JSON."""
     return json.dumps(data, separators=(",", ":"), sort_keys=True)
 
-async def call_snapbi_transfer_intrabank(db: AsyncSession, access_token: str, request_body: dict, signature_data: str, timestamp_data: str, x_partner_id: str, channel_id: str,  endpoint_transfer_intrabank: ApiEndpoint) -> str:
+async def call_snapbi_transfer_interbank(db: AsyncSession, access_token: str, request_body: dict, signature_data: str, timestamp_data: str, x_partner_id: str, channel_id: str,  endpoint_transfer_interbank: ApiEndpoint) -> str:
     """snapbi_transfer_intrabank sesuai spesifikasi SnapBI."""
 
     
@@ -42,8 +42,8 @@ async def call_snapbi_transfer_intrabank(db: AsyncSession, access_token: str, re
     minified_body = minify_json(request_body)
     minified_body = json.loads(minified_body)
 
-    if not endpoint_transfer_intrabank:
-        raise ValueError("SNAPBI Transfer Intrabank Endpoint not found in database")
+    if not endpoint_transfer_interbank:
+        raise ValueError("SNAPBI Transfer Interbank Endpoint not found in database")
 
     x_external_id = generate_x_external_id()
     
@@ -58,8 +58,8 @@ async def call_snapbi_transfer_intrabank(db: AsyncSession, access_token: str, re
     }
     payload = minified_body
 
-    ep_port = "" if endpoint_transfer_intrabank.port == "" else f":{endpoint_transfer_intrabank.port}"
-    url = f"https://{endpoint_transfer_intrabank.host}{ep_port}{endpoint_transfer_intrabank.path}"
+    ep_port = "" if endpoint_transfer_interbank.port == "" else f":{endpoint_transfer_interbank.port}"
+    url = f"https://{endpoint_transfer_interbank.host}{ep_port}{endpoint_transfer_interbank.path}"
 
     async with aiohttp.ClientSession() as session:
         async with session.post(url, headers=headers, json=payload, ssl=not DEBUG_MODE) as response:
@@ -72,7 +72,7 @@ async def call_snapbi_transfer_intrabank(db: AsyncSession, access_token: str, re
 
             # Log event
             event_log = ApiEventLog(
-                endpoint_id=endpoint_transfer_intrabank.id,
+                endpoint_id=endpoint_transfer_interbank.id,
                 request_method="POST",
                 request_headers=headers,
                 request_body=payload,

@@ -1,5 +1,5 @@
 """
-SNAPBI Transfer Intrabank Module of MCM - Microservices.
+SNAPBI Transfer Status Module of MCM - Microservices.
 Powered by FastAPI
 Presented by Angga Purwana, AMd., S.Kom.
 """
@@ -14,7 +14,7 @@ async def init_db():
     async with engine.connect() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-app = FastAPI(title="MCM SNAPBI Transfer Intrabank Service")
+app = FastAPI(title="MCM SNAPBI Transfer Status Service")
 
 # Panggil init_db saat aplikasi dimulai
 @app.on_event("startup")

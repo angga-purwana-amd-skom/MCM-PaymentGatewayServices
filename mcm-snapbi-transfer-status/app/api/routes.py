@@ -8,7 +8,7 @@ import httpx
 import random
 import logging
 from app.core.database import get_db
-from app.api.snapbi_client import call_snapbi_transfer_intrabank
+from app.api.snapbi_client import call_snapbi_transfer_status
 from app.services.auth import verify_token
 from app.models.models import ApiEndpoint, ApiCredential, ApiToken
 from app.core.config import DEBUG_MODE, CONSUL_URL, X_PARTNER_ID, CHANNEL_ID
@@ -41,8 +41,8 @@ async def get_transaction_signature_service() -> str:
             logger.error(f"Error contacting Consul: {e}")
             return None
 
-@router.post("/SnapBITransferIntrabank", summary="Do SNAPBI Transfer Intrabank")
-async def get_snapbi_balance_inquiry(
+@router.post("/SnapBITransferStatus", summary="SNAPBI Get Transfer Status")
+async def snapbi_transfer_status(
     request: Request,
     authorization: str = Header(None),
     db: AsyncSession = Depends(get_db)
@@ -85,17 +85,17 @@ async def get_snapbi_balance_inquiry(
     if not transaction_signature_service:
         raise HTTPException(status_code=404, detail="SNAPBI Get Transaction Signature Service not found")     
     
-    endpoint_transfer_intrabank_result = await db.execute(select(ApiEndpoint).where(ApiEndpoint.name == 'SnapBI Transfer Intrabank'))
-    endpoint_transfer_intrabank = endpoint_transfer_intrabank_result.scalar()
+    endpoint_transfer_status_result = await db.execute(select(ApiEndpoint).where(ApiEndpoint.name == 'SnapBI Transfer Status'))
+    endpoint_transfer_status = endpoint_transfer_status_result.scalar()
 
-    if not endpoint_transfer_intrabank:
-        raise ValueError("SNAPBI SnapBI Transfer Intrabank not found in database")    
+    if not endpoint_transfer_status:
+        raise ValueError("SNAPBI SnapBI Transfer Interbank not found in database")    
 
     try:
         async with httpx.AsyncClient() as client:
             response = await client.request(
                 method=request.method,
-                url=f"{transaction_signature_service}?HTTPMethod=POST&EndpointUrl={endpoint_transfer_intrabank.path}",
+                url=f"{transaction_signature_service}?HTTPMethod=POST&EndpointUrl={endpoint_transfer_status.path}",
                 headers=dict(request.headers),
                 content=await request.body(),
             )
@@ -110,7 +110,7 @@ async def get_snapbi_balance_inquiry(
             timestamp_data = response_data_clean.get("timestamp")
 
             # Call SNAP_BI_balance_inquiry
-            snap_bi_response_data = await call_snapbi_transfer_intrabank(db, access_token, request_body, signature_data, timestamp_data, X_PARTNER_ID, CHANNEL_ID, endpoint_transfer_intrabank)
+            snap_bi_response_data = await call_snapbi_transfer_status(db, access_token, request_body, signature_data, timestamp_data, X_PARTNER_ID, CHANNEL_ID, endpoint_transfer_status)
             
             return snap_bi_response_data                
     except httpx.HTTPError as e:

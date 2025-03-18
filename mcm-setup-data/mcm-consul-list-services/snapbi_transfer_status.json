@@ -1,0 +1,11 @@
+{
+    "services": [
+      {
+        "ID": "snapbi_transfer_status",
+        "Name": "SnapBITransferStatus",
+        "Address": "mcm-snapbi-transfer-status",
+        "Port": 8095
+      }
+    ]
+}
+  
