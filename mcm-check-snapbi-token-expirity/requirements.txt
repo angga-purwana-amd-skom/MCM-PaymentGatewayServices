@@ -1,0 +1,9 @@
+sqlalchemy==2.0.38
+asyncpg==0.30.0
+python-dotenv==1.0.1
+sqlalchemy==2.0.38
+asyncpg==0.30.0
+python-dotenv==1.0.1
+aiohttp==3.9.3
+starlette==0.45.3
+httpx==0.28.1

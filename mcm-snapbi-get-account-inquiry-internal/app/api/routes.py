@@ -42,7 +42,7 @@ async def get_transaction_signature_service() -> str:
             return None
 
 @router.post("/SnapBIGetBalanceInquiryInternal", summary="Get SNAPBI BalanceInquiry Internal")
-async def get_snapbi_balance_inquiry(
+async def get_snapbi_balance_inquiry_int(
     request: Request,
     authorization: str = Header(None),
     db: AsyncSession = Depends(get_db)
