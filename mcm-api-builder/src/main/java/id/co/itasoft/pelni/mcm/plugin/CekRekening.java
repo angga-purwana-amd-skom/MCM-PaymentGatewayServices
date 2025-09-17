@@ -104,12 +104,11 @@ public class CekRekening extends ApiPluginAbstract {
             @Param(value = "account_name", description = "account_name") String account_name
     ) {
 
-       
-        return new ApiResponse(200,  CekRekening(getToken(),transaction_id,channel_id,partner_reference_no,beneficiary_account_no,account_name));
+        return new ApiResponse(200, CekRekening(getToken(), transaction_id, channel_id, partner_reference_no, beneficiary_account_no, account_name));
 
     }
-    
-     private String getToken() {
+
+    private String getToken() {
         String val = "false";
         HttpURLConnection con = null;
         BufferedReader reader = null;
@@ -178,31 +177,29 @@ public class CekRekening extends ApiPluginAbstract {
 
         return val;
     }
-     
-     private String CekRekening(String token, String transaction_id_val,String channel_id,String partner_reference_no_val,String beneficiary_account_no_val,String account_name) {
-        String val = "";
 
-        LogUtil.info(pluginName, "transaction_id_val: " + transaction_id_val);
-        LogUtil.info(pluginName, "channel_id: " + channel_id);
-        LogUtil.info(pluginName, "partner_reference_no_val: " + partner_reference_no_val);
-        LogUtil.info(pluginName, "beneficiary_account_no_val: " + beneficiary_account_no_val);
+    private String CekRekening(String token, String transaction_id_val, String channel_id,
+            String partner_reference_no_val, String beneficiary_account_no_val,
+            String account_name) {
+         LogUtil.info(pluginName, "token: " + token);
+          LogUtil.info(pluginName, "transaction_id_val: " + transaction_id_val);
+           LogUtil.info(pluginName, "channel_id: " + channel_id);
+            LogUtil.info(pluginName, "partner_reference_no_val: " + partner_reference_no_val);
+            LogUtil.info(pluginName, "beneficiary_account_no_val: " + beneficiary_account_no_val);
+            LogUtil.info(pluginName, "account_name: " + account_name);
+        JSONObject result = new JSONObject(); // root JSON
+        JSONObject dataObj = new JSONObject(); // isi data
 
         if (!"false".equals(token)) {
-
             try {
-                // Endpoint API
                 String url = "https://ms-ebilling-v8-dev.pelni.co.id/mcm/account_inquiry_internal";
                 URL obj = new URL(url);
                 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
-                // Set method POST
                 con.setRequestMethod("POST");
-
-                // Tambahkan header
                 con.setRequestProperty("accept", "application/json");
                 con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
-                // Data yang dikirim (body request)
                 String urlParameters
                         = "token=" + token
                         + "&transaction_id=" + transaction_id_val
@@ -210,18 +207,15 @@ public class CekRekening extends ApiPluginAbstract {
                         + "&partner_reference_no=" + partner_reference_no_val
                         + "&beneficiary_account_no=" + beneficiary_account_no_val;
 
-                // Kirim request body
                 con.setDoOutput(true);
                 try (DataOutputStream wr = new DataOutputStream(con.getOutputStream())) {
                     wr.writeBytes(urlParameters);
                     wr.flush();
                 }
 
-                // Ambil response code
                 int responseCode = con.getResponseCode();
-//        LogUtil.info(pluginName, "Response Code : " + responseCode);
 
-                // Jika response bukan 200, baca error stream dan log
+                 
                 if (responseCode != 200) {
                     BufferedReader errorReader = new BufferedReader(new InputStreamReader(con.getErrorStream(), "UTF-8"));
                     StringBuilder errorResponse = new StringBuilder();
@@ -231,12 +225,14 @@ public class CekRekening extends ApiPluginAbstract {
                     }
                     errorReader.close();
 
-                    LogUtil.info(pluginName, errorResponse.toString());
-                    val = "ERROR"; // atau isi sesuai kebutuhan
-                    return val;
+                    result.put("data", new JSONObject()
+                            .put("beneficiaryAccountName", "")
+                            .put("beneficiaryAccountNo", beneficiary_account_no_val)
+                            .put("beneficiaryAccountStatus", "ERROR")
+                    );
+                    return result.toString();
                 }
 
-                // Baca response body jika responseCode == 200
                 BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream(), "UTF-8"));
                 String inputLine;
                 StringBuilder response = new StringBuilder();
@@ -245,44 +241,56 @@ public class CekRekening extends ApiPluginAbstract {
                     response.append(inputLine);
                 }
                 in.close();
-
-                // Log response
-                LogUtil.info(pluginName, "Response Body: " + response.toString());
-
-                // Parsing JSON untuk ambil beneficiaryAccountStatus
+                 LogUtil.info(pluginName, "Response Body: " + response.toString());
                 JSONObject jsonResponse = new JSONObject(response.toString());
+              
+                
+                
                 if (jsonResponse.getBoolean("status")) {
                     JSONObject data = jsonResponse.getJSONObject("data");
                     if (data.getBoolean("status")) {
                         JSONObject innerData = data.getJSONObject("data");
-                        val = innerData.getString("beneficiaryAccountStatus");
                         String nama = innerData.getString("beneficiaryAccountName");
+                        String status = innerData.getString("beneficiaryAccountStatus");
                         LogUtil.info(pluginName, "nama : " + nama);
                         if (nama.equals(account_name)) {
-                            val = val + "-Sesuai";
+                            status = status + "-Sesuai";
                         } else {
-                            val = val + "-Tidak Sesuai";
+                            status = status + "-Tidak Sesuai";
                         }
+                        dataObj.put("beneficiaryAccountName", nama);
+                        dataObj.put("beneficiaryAccountNo", beneficiary_account_no_val);
+                        dataObj.put("beneficiaryAccountStatus", status);
+
+                        result.put("data", dataObj);
                     } else {
-                        LogUtil.warn(pluginName, "Status false pada level data JSON");
-                        val = "STATUS_FALSE";
+                        dataObj.put("beneficiaryAccountName", "");
+                        dataObj.put("beneficiaryAccountNo", beneficiary_account_no_val);
+                        dataObj.put("beneficiaryAccountStatus", "STATUS_FALSE");
+                        result.put("data", dataObj);
                     }
                 } else {
-                    LogUtil.warn(pluginName, "Status false dari response JSON utama");
-                    val = "STATUS_FALSE";
+                    dataObj.put("beneficiaryAccountName", "");
+                    dataObj.put("beneficiaryAccountNo", beneficiary_account_no_val);
+                    dataObj.put("beneficiaryAccountStatus", "STATUS_FALSE");
+                    result.put("data", dataObj);
                 }
 
             } catch (Exception e) {
-                LogUtil.error(pluginName, e, e.getMessage());
-                e.printStackTrace();
-                val = "EXCEPTION";
+                dataObj.put("beneficiaryAccountName", "");
+                dataObj.put("beneficiaryAccountNo", beneficiary_account_no_val);
+                dataObj.put("beneficiaryAccountStatus", "EXCEPTION");
+                result.put("data", dataObj);
             }
         } else {
-            val = "ERROR";
+             LogUtil.info(pluginName, "masuk false" );
+            dataObj.put("beneficiaryAccountName", "");
+            dataObj.put("beneficiaryAccountNo", beneficiary_account_no_val);
+            dataObj.put("beneficiaryAccountStatus", "ERROR");
+            result.put("data", dataObj);
         }
 
-        return val;
+        return result.toString();
     }
-    
-    
+
 }
