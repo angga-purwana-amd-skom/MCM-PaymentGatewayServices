@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
-Bnd-LastModified: 1757671761787
+Bnd-LastModified: 1758095947358
 Build-Jdk-Spec: 11
 Bundle-Activator: id.co.itasoft.pelni.mcm.plugin.Activator
 Bundle-ClassPath: .,dependency/commons-codec-1.15.jar,dependency/commons
