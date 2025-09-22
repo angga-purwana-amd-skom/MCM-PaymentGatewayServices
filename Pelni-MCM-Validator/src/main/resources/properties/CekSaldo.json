@@ -1,0 +1,72 @@
+[
+  {
+    "title": "Properties",
+    "properties": [
+      {
+        "name": "token_url",
+        "label": "Token URL",
+        "type": "textfield",
+        "required": "true",
+        "description": "http://localhost:5772/token",
+        "value": "http://localhost:5772/token"
+      },
+      {
+        "name": "balance_inquiry_url",
+        "label": "Balance Inquiry URL",
+        "type": "textfield",
+        "required": "true",
+        "description": "https://ms-ebilling-v8-dev.pelni.co.id/mcm/balance_inquiry",
+        "value": "https://ms-ebilling-v8-dev.pelni.co.id/mcm/balance_inquiry"
+      },
+      {
+        "name": "transaction_id",
+        "label": "Transaction ID",
+        "type": "textfield",
+        "required": "true",
+        "value": "#process.recordId#"
+      },
+      {
+        "name": "channel_id",
+        "label": "Channel ID",
+        "type": "textfield",
+        "required": "true",
+        "value": "PELNI"
+      },
+      {
+        "name": "partner_reference_no",
+        "label": "Partner Reference No",
+        "type": "textfield",
+        "required": "true",
+        "value": "PELNI#process.recordId#"
+      },
+      {
+        "name": "bank_card_token",
+        "label": "Bank Card Token",
+        "type": "textfield",
+        "required": "false",
+        "value": "6d7963617264746f6b656e"
+      },
+      {
+        "name": "account_no",
+        "label": "Account No",
+        "type": "textfield",
+        "required": "true",
+        "value": "2000100101"
+      },
+      {
+        "name": "message_error_conection",
+        "label": "Message Error Conection",
+        "type": "textfield",
+        "required": "true",
+        "value": "Terjadi kesalahan koneksi, silahkan coba lagi."
+      },
+      {
+        "name": "message_saldo_tdk_cukup",
+        "label": "Message Saldo Tidak Cukup",
+        "type": "textfield",
+        "required": "true",
+        "value": "Saldo tidak cukup."
+      }
+    ]
+  }
+]

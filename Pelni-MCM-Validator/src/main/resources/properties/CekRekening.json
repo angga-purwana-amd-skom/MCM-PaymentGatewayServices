@@ -1,0 +1,86 @@
+[{
+  "title": "Properties",
+  "properties": [
+    {
+      "name": "token_url",
+      "label": "Token URL",
+      "type": "textfield",
+      "required": "true",
+      "description" : "http://localhost:5772/token"
+    },
+    {
+      "name": "account_inquiry_internal_url",
+      "label": "Account Inquiry Internal URL",
+      "type": "textfield",
+      "required": "true",
+      "description" : "https://ms-ebilling-v8-dev.pelni.co.id/mcm/account_inquiry_internal"
+    },
+    {
+      "name": "transaction_id",
+      "label": "Transaction ID",
+      "type": "textfield",
+      "required": "true"
+    },
+    {
+      "name": "channel_id",
+      "label": "Channel ID",
+      "type": "textfield",
+      "required": "true",
+      "description" : "PELNI"
+    },
+    {
+      "name": "partner_reference_no",
+      "label": "Partner Reference No",
+      "type": "textfield",
+      "required": "true"
+    },
+    {
+      "name": "beneficiary_account_no",
+      "label": "Beneficiary AccountNo",
+      "type": "textfield",
+      "required": "true"
+    },
+    {
+      "name": "account_name",
+      "label": "Account Name",
+      "type": "textfield",
+      "required": "true"
+    },
+    {
+      "name": "email",
+      "label": "Email",
+      "type": "textfield",
+      "required": "true"
+    },
+    {
+      "name": "message_error_conection",
+      "label": "Message Error Conection",
+      "type": "textfield",
+      "required": "true"
+    },
+    {
+      "name": "message_error_endpoint",
+      "label": "Message Error Endpoint",
+      "type": "textfield",
+      "required": "true"
+    },
+    {
+      "name": "message_rek_aktif_tdk_sesuai",
+      "label": "Message Rekening Aktif Tidak Sesuai",
+      "type": "textfield",
+      "required": "true"
+    },
+    {
+      "name": "message_rek_tdk_aktif_tdk_sesuai",
+      "label": "Message Rekening Tidak Aktif Tidak Sesuai",
+      "type": "textfield",
+      "required": "true"
+    },
+    {
+      "name": "message_rek_tdk_aktif_sesuai",
+      "label": "Message Rekening Tidak Aktif Sesuai",
+      "type": "textfield",
+      "required": "true"
+    }
+  ]
+}]
