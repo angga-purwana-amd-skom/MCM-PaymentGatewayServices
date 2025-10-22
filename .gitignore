@@ -1,3 +1,6 @@
 **/venv/
 **/*.env
 
+
+# build outputs
+mcm-api-builder/target/
