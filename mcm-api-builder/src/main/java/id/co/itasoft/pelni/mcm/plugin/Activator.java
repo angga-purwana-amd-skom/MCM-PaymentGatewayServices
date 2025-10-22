@@ -18,6 +18,7 @@ public class Activator implements BundleActivator {
         registrationList.add(context.registerService(CekRekening.class.getName(), new CekRekening(), null));
         registrationList.add(context.registerService(CekMasterBankEBS.class.getName(), new CekMasterBankEBS(), null));
         registrationList.add(context.registerService(CekSaldoAPI.class.getName(), new CekSaldoAPI(), null));
+        registrationList.add(context.registerService(Integrasi.class.getName(), new Integrasi(), null));
     }
 
     public void stop(BundleContext context) {
