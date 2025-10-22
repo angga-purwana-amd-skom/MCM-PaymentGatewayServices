@@ -117,14 +117,15 @@ public class Integrasi extends ApiPluginAbstract {
         @Response(responseCode = 500, description = "Internal server error", array = false)
     })
     public ApiResponse getMethod(
-            @Param(value = "http://localhost:5772/token", description = "Token URL", required = true) String token_url,
-            @Param(value = "https://ms-ebilling-v8-dev.pelni.co.id/mcm/transfer_intrabank", description = "Intra Bank URL", required = false) String intra_bank_url,
-            @Param(value = "https://ms-ebilling-v8-dev.pelni.co.id/mcm/transfer_interbank", description = "Inter Bank URL", required = false) String inter_bank_url,
-            @Param(value = "https://ms-ebilling-v8-dev.pelni.co.id/mcm/transfer_skn", description = "SKN URL", required = false) String skn_url,
-            @Param(value = "https://ms-ebilling-v8-dev.pelni.co.id/mcm/transfer_rtgs", description = "RTGS URL", required = false) String rtgs_url,
-            @Param(value = "https://ms-ebilling-v8-dev.pelni.co.id/mcm/account_inquiry_internal", description = "Cek Rekening URL", required = true) String cek_rekening_url,
-            @Param(value = "https://ms-ebilling-v8-dev.pelni.co.id/mcm/balance_inquiry", description = "Cek Saldo URL", required = true) String cek_saldo_url,
-            @Param(value = "Intrabank/Interbank/RTGS/SKN", description = "Type Integrasi", required = true) String type_integrasi,
+            @Param(value = "token_url", description = "Token URL", required = true) String token_url,
+            @Param(value = "intra_bank_url", description = "Intra Bank URL", required = false) String intra_bank_url,
+            @Param(value = "inter_bank_url", description = "Inter Bank URL", required = false) String inter_bank_url,
+            @Param(value = "skn_url", description = "SKN URL", required = false) String skn_url,
+            @Param(value = "rtgs_url", description = "RTGS URL", required = false) String rtgs_url,
+            @Param(value = "cek_rekening_url_internal", description = "Cek Rekening URL Internal", required = true) String cek_rekening_url_internal,
+            @Param(value = "cek_rekening_url_external", description = "Cek Rekening URL External", required = true) String cek_rekening_url_external,
+            @Param(value = "cek_saldo_url", description = "Cek Saldo URL", required = true) String cek_saldo_url,
+            @Param(value = "type_integrasi", description = "Type Integrasi Intrabank/Interbank/RTGS/SKN", required = true) String type_integrasi,
             @Param(value = "transaction_id", description = "transaction_id", required = true) String transaction_id,
             @Param(value = "channel_id", description = "channel_id", required = true) String channel_id,
             @Param(value = "partner_reference_no", description = "partner_reference_no", required = true) String partner_reference_no,
@@ -189,7 +190,7 @@ public class Integrasi extends ApiPluginAbstract {
         String token = getToken(token_url, c_no_payment);
 
         if (!"false".equals(token)) {
-            String CekRekening = CekRekening(token, transaction_id, channel_id, partner_reference_no, beneficiary_account_no, c_no_payment, cek_rekening_url, beneficiary_account_name);
+            String CekRekening = CekRekening(token, transaction_id, channel_id, partner_reference_no, beneficiary_account_no, c_no_payment, cek_rekening_url_internal, beneficiary_account_name);
 //            LogUtil.info(pluginName, "masuk cek rekening = " + CekRekening);
             if (!"ERROR".equals(CekRekening)) {
                 String CekSaldo = CekSaldo(token, transaction_id, channel_id, partner_reference_no, account_no, c_no_payment, cek_saldo_url, amount);
