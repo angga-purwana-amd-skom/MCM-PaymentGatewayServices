@@ -13,11 +13,10 @@ public class Activator implements BundleActivator {
     public void start(BundleContext context) {
         registrationList = new ArrayList<ServiceRegistration>();
 
-        //Register plugin here
+        // Register plugin here
         registrationList.add(context.registerService(MainRoot.class.getName(), new MainRoot(), null));
         registrationList.add(context.registerService(CekRekening.class.getName(), new CekRekening(), null));
         registrationList.add(context.registerService(CekSaldoAPI.class.getName(), new CekSaldoAPI(), null));
-        registrationList.add(context.registerService(CekMasterBankEBS.class.getName(), new CekMasterBankEBS(), null));
     }
 
     public void stop(BundleContext context) {
