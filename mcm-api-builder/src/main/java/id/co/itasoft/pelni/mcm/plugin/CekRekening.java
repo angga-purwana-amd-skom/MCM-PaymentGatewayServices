@@ -112,7 +112,7 @@ public class CekRekening extends ApiPluginAbstract {
             @Param(value = "external_url", description = "external_url", required = true) String external_url
     ) {
 
-        String bank_code = getBranch(bank_name);
+        String bank_code = getBank_code(bank_name);
         String cekRekening = "";
 
         if ("008".equals(bank_code)) {
@@ -426,7 +426,7 @@ public class CekRekening extends ApiPluginAbstract {
         return result.toString();
     }
      
-     private String getBranch(String bank) {
+     private String getBank_code(String bank) {
         String ret = "";
         WorkflowUserManager wum = (WorkflowUserManager) AppUtil.getApplicationContext().getBean("workflowUserManager");
         String currentUser = wum.getCurrentUsername();
