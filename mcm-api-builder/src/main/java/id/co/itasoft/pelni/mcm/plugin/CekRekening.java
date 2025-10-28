@@ -13,10 +13,14 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import javax.sql.DataSource;
 import org.joget.api.annotations.Operation;
 import org.joget.api.annotations.Param;
 import org.joget.api.annotations.Response;
@@ -27,6 +31,7 @@ import org.joget.api.model.ApiResponse;
 import org.joget.apps.app.service.AppPluginUtil;
 import org.joget.apps.app.service.AppUtil;
 import org.joget.commons.util.LogUtil;
+import org.joget.workflow.model.service.WorkflowUserManager;
 import org.joget.workflow.util.WorkflowUtil;
 import org.json.JSONObject;
 
@@ -101,10 +106,22 @@ public class CekRekening extends ApiPluginAbstract {
             @Param(value = "channel_id", description = "channel_id") String channel_id,
             @Param(value = "partner_reference_no", description = "partner_reference_no") String partner_reference_no,
             @Param(value = "beneficiary_account_no", description = "beneficiary_account_no") String beneficiary_account_no,
-            @Param(value = "account_name", description = "account_name") String account_name
+            @Param(value = "account_name", description = "account_name") String account_name,
+            @Param(value = "bank_name", description = "bank_name") String bank_name,
+            @Param(value = "internal_url", description = "internal_url", required = true) String internal_url,
+            @Param(value = "external_url", description = "external_url", required = true) String external_url
     ) {
 
-        return new ApiResponse(200, CekRekening(getToken(), transaction_id, channel_id, partner_reference_no, beneficiary_account_no, account_name));
+        String bank_code = getBank_code(bank_name);
+        String cekRekening = "";
+
+        if ("008".equals(bank_code)) {
+            cekRekening = CekRekeningInternal(getToken(), transaction_id, channel_id, partner_reference_no, beneficiary_account_no, account_name,internal_url);
+        } else {
+            cekRekening = CekRekeningExternal(getToken(), transaction_id, channel_id, partner_reference_no, beneficiary_account_no, account_name, bank_code,external_url);
+        }
+
+        return new ApiResponse(200, cekRekening);
 
     }
 
@@ -178,9 +195,9 @@ public class CekRekening extends ApiPluginAbstract {
         return val;
     }
 
-    private String CekRekening(String token, String transaction_id_val, String channel_id,
+    private String CekRekeningInternal(String token, String transaction_id_val, String channel_id,
             String partner_reference_no_val, String beneficiary_account_no_val,
-            String account_name) {
+            String account_name,String internal_url) {
          LogUtil.info(pluginName, "token: " + token);
           LogUtil.info(pluginName, "transaction_id_val: " + transaction_id_val);
            LogUtil.info(pluginName, "channel_id: " + channel_id);
@@ -192,7 +209,7 @@ public class CekRekening extends ApiPluginAbstract {
 
         if (!"false".equals(token)) {
             try {
-                String url = "https://ms-ebilling-v8-dev.pelni.co.id/mcm/account_inquiry_internal";
+                String url = internal_url;
                 URL obj = new URL(url);
                 HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
@@ -291,6 +308,150 @@ public class CekRekening extends ApiPluginAbstract {
         }
 
         return result.toString();
+    }
+    
+     private String CekRekeningExternal(String token, String transaction_id_val, String channel_id,
+            String partner_reference_no_val, String beneficiary_account_no_val,
+            String account_name,String bank_code,String external_url) {
+         LogUtil.info(pluginName, "token: " + token);
+          LogUtil.info(pluginName, "transaction_id_val: " + transaction_id_val);
+           LogUtil.info(pluginName, "channel_id: " + channel_id);
+            LogUtil.info(pluginName, "partner_reference_no_val: " + partner_reference_no_val);
+            LogUtil.info(pluginName, "beneficiary_account_no_val: " + beneficiary_account_no_val);
+            LogUtil.info(pluginName, "account_name: " + account_name);
+        JSONObject result = new JSONObject(); // root JSON
+        JSONObject dataObj = new JSONObject(); // isi data
+
+        if (!"false".equals(token)) {
+            try {
+                String url = external_url;
+                URL obj = new URL(url);
+                HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+
+                con.setRequestMethod("POST");
+                con.setRequestProperty("accept", "application/json");
+                con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+
+                String urlParameters
+                        = "token=" + token
+                        + "&transaction_id=" + transaction_id_val
+                        + "&channel_id=" + channel_id
+                        + "&partner_reference_no=" + partner_reference_no_val
+                        + "&beneficiary_bank_code=" + bank_code
+                        + "&beneficiary_account_no=" + beneficiary_account_no_val;
+
+                con.setDoOutput(true);
+                try (DataOutputStream wr = new DataOutputStream(con.getOutputStream())) {
+                    wr.writeBytes(urlParameters);
+                    wr.flush();
+                }
+
+                int responseCode = con.getResponseCode();
+
+                 
+                if (responseCode != 200) {
+                    BufferedReader errorReader = new BufferedReader(new InputStreamReader(con.getErrorStream(), "UTF-8"));
+                    StringBuilder errorResponse = new StringBuilder();
+                    String line;
+                    while ((line = errorReader.readLine()) != null) {
+                        errorResponse.append(line);
+                    }
+                    errorReader.close();
+
+                    result.put("data", new JSONObject()
+                            .put("beneficiaryAccountName", "")
+                            .put("beneficiaryAccountNo", beneficiary_account_no_val)
+                            .put("beneficiaryAccountStatus", "ERROR")
+                    );
+                    return result.toString();
+                }
+
+                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream(), "UTF-8"));
+                String inputLine;
+                StringBuilder response = new StringBuilder();
+
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
+                 LogUtil.info(pluginName, "Response Body: " + response.toString());
+                JSONObject jsonResponse = new JSONObject(response.toString());
+              
+                
+                
+                if (jsonResponse.getBoolean("status")) {
+                    JSONObject data = jsonResponse.getJSONObject("data");
+                    if (data.getBoolean("status")) {
+                        JSONObject innerData = data.getJSONObject("data");
+                        String nama = innerData.getString("beneficiaryAccountName");
+                        String status = innerData.getString("beneficiaryAccountStatus");
+                        LogUtil.info(pluginName, "nama : " + nama);
+                        if (nama.equals(account_name)) {
+                            status = status + "-Sesuai";
+                        } else {
+                            status = status + "-Tidak Sesuai";
+                        }
+                        dataObj.put("beneficiaryAccountName", nama);
+                        dataObj.put("beneficiaryAccountNo", beneficiary_account_no_val);
+                        dataObj.put("beneficiaryAccountStatus", status);
+
+                        result.put("data", dataObj);
+                    } else {
+                        dataObj.put("beneficiaryAccountName", "");
+                        dataObj.put("beneficiaryAccountNo", beneficiary_account_no_val);
+                        dataObj.put("beneficiaryAccountStatus", "STATUS_FALSE");
+                        result.put("data", dataObj);
+                    }
+                } else {
+                    dataObj.put("beneficiaryAccountName", "");
+                    dataObj.put("beneficiaryAccountNo", beneficiary_account_no_val);
+                    dataObj.put("beneficiaryAccountStatus", "STATUS_FALSE");
+                    result.put("data", dataObj);
+                }
+
+            } catch (Exception e) {
+                dataObj.put("beneficiaryAccountName", "");
+                dataObj.put("beneficiaryAccountNo", beneficiary_account_no_val);
+                dataObj.put("beneficiaryAccountStatus", "EXCEPTION");
+                result.put("data", dataObj);
+            }
+        } else {
+             LogUtil.info(pluginName, "masuk false" );
+            dataObj.put("beneficiaryAccountName", "");
+            dataObj.put("beneficiaryAccountNo", beneficiary_account_no_val);
+            dataObj.put("beneficiaryAccountStatus", "ERROR");
+            result.put("data", dataObj);
+        }
+
+        return result.toString();
+    }
+     
+     private String getBank_code(String bank) {
+        String ret = "";
+        WorkflowUserManager wum = (WorkflowUserManager) AppUtil.getApplicationContext().getBean("workflowUserManager");
+        String currentUser = wum.getCurrentUsername();
+        String query = "SELECT c_bank_code\n"
+                + "FROM app_fd_ebill_mcm_banks\n"
+                + "WHERE c_bank_name = ? \n"
+                + "LIMIT 1";
+        DataSource ds = (DataSource) AppUtil.getApplicationContext().getBean("setupDataSource");
+
+        try (Connection con = ds.getConnection();
+                PreparedStatement ps = con.prepareStatement(query)) {
+
+            ps.setString(1, bank);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    ret = rs.getString("c_bank_code");
+                }
+            }
+
+        } catch (Exception ex) {
+            LogUtil.error(getClass().getName(), ex, "Error executing query: " + query);
+        }
+//LogUtil.info(getClass().getName(), "ret = "+ret);
+        return ret;
     }
 
 }

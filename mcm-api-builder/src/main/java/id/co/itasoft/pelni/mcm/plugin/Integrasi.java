@@ -45,6 +45,7 @@ import java.util.logging.Logger;
 import org.joget.workflow.model.WorkflowProcessResult;
 import org.joget.workflow.model.WorkflowVariable;
 import org.joget.workflow.model.service.WorkflowManager;
+import org.joget.workflow.model.service.WorkflowUserManager;
 //
 //import org.apache.commons.mail.Email;
 //import org.apache.commons.mail.EmailException;
@@ -117,14 +118,15 @@ public class Integrasi extends ApiPluginAbstract {
         @Response(responseCode = 500, description = "Internal server error", array = false)
     })
     public ApiResponse getMethod(
-            @Param(value = "http://localhost:5772/token", description = "Token URL", required = true) String token_url,
-            @Param(value = "https://ms-ebilling-v8-dev.pelni.co.id/mcm/transfer_intrabank", description = "Intra Bank URL", required = false) String intra_bank_url,
-            @Param(value = "https://ms-ebilling-v8-dev.pelni.co.id/mcm/transfer_interbank", description = "Inter Bank URL", required = false) String inter_bank_url,
-            @Param(value = "https://ms-ebilling-v8-dev.pelni.co.id/mcm/transfer_skn", description = "SKN URL", required = false) String skn_url,
-            @Param(value = "https://ms-ebilling-v8-dev.pelni.co.id/mcm/transfer_rtgs", description = "RTGS URL", required = false) String rtgs_url,
-            @Param(value = "https://ms-ebilling-v8-dev.pelni.co.id/mcm/account_inquiry_internal", description = "Cek Rekening URL", required = true) String cek_rekening_url,
-            @Param(value = "https://ms-ebilling-v8-dev.pelni.co.id/mcm/balance_inquiry", description = "Cek Saldo URL", required = true) String cek_saldo_url,
-            @Param(value = "Intrabank/Interbank/RTGS/SKN", description = "Type Integrasi", required = true) String type_integrasi,
+            @Param(value = "token_url", description = "Token URL", required = true) String token_url,
+            @Param(value = "intra_bank_url", description = "Intra Bank URL", required = false) String intra_bank_url,
+            @Param(value = "inter_bank_url", description = "Inter Bank URL", required = false) String inter_bank_url,
+            @Param(value = "skn_url", description = "SKN URL", required = false) String skn_url,
+            @Param(value = "rtgs_url", description = "RTGS URL", required = false) String rtgs_url,
+            @Param(value = "cek_rekening_url_internal", description = "Cek Rekening URL Internal", required = true) String cek_rekening_url_internal,
+            @Param(value = "cek_rekening_url_external", description = "Cek Rekening URL External", required = true) String cek_rekening_url_external,
+            @Param(value = "cek_saldo_url", description = "Cek Saldo URL", required = true) String cek_saldo_url,
+            @Param(value = "type_integrasi", description = "Type Integrasi Intrabank/Interbank/RTGS/SKN", required = true) String type_integrasi,
             @Param(value = "transaction_id", description = "transaction_id", required = true) String transaction_id,
             @Param(value = "channel_id", description = "channel_id", required = true) String channel_id,
             @Param(value = "partner_reference_no", description = "partner_reference_no", required = true) String partner_reference_no,
@@ -153,6 +155,7 @@ public class Integrasi extends ApiPluginAbstract {
     //                @Param(value = "sender_phone", description = "sender_phone",required = false) String sender_phone
     ) {
         String hasil = "";
+        int respon_code=200;
 
         //        String channel_id = "95221";
 //        String partner_reference_no = "2020102900000000000001";
@@ -182,55 +185,96 @@ public class Integrasi extends ApiPluginAbstract {
 //        String sender_customer_type = "1";
 //        String sender_phone = "08123456789";
 //            sendEmail();
-       
         Map<String, String> datas = GetData(transaction_id);
         String c_no_payment = datas.get("c_no_payment");
+        String c_supplier_bank_nama = datas.get("c_supplier_bank_nama");
 
-        String token = getToken(token_url, c_no_payment);
+        String token = getToken(token_url, c_no_payment, transaction_id);
 
         if (!"false".equals(token)) {
-            String CekRekening = CekRekening(token, transaction_id, channel_id, partner_reference_no, beneficiary_account_no, c_no_payment, cek_rekening_url, beneficiary_account_name);
+            hasil = "true";
+            LogUtil.info(pluginName, "token sukses ");
+
+            String bank_code = getBank_code(c_supplier_bank_nama);
+            LogUtil.info(pluginName, "bank_code = " + bank_code);
+            LogUtil.info(pluginName, "beneficiary_account_no = " + beneficiary_account_no);
+            String CekRekening = "";
+
+            if ("008".equals(bank_code)) {
+                CekRekening = CekRekeningInternal(token, transaction_id, channel_id, partner_reference_no, beneficiary_account_no, c_no_payment, cek_rekening_url_internal, beneficiary_account_name);
+                LogUtil.info(pluginName, "CekRekening 008 = " + CekRekening);
+            } else {
+                CekRekening = CekRekeningExternal(token, transaction_id, channel_id, partner_reference_no, beneficiary_account_no, c_no_payment, cek_rekening_url_external, beneficiary_account_name, bank_code);
+                LogUtil.info(pluginName, "CekRekening !008 = " + CekRekening);
+            }
+
+//            CekRekening = CekRekening(token, transaction_id, channel_id, partner_reference_no, beneficiary_account_no, c_no_payment, cek_rekening_url_internal, beneficiary_account_name);
 //            LogUtil.info(pluginName, "masuk cek rekening = " + CekRekening);
             if (!"ERROR".equals(CekRekening)) {
+                hasil = "true";
+                LogUtil.info(pluginName, "CekRekening sukses ");
+                
                 String CekSaldo = CekSaldo(token, transaction_id, channel_id, partner_reference_no, account_no, c_no_payment, cek_saldo_url, amount);
+                LogUtil.info(pluginName, "CekSaldo =  "+CekSaldo);
 //                LogUtil.info(pluginName, "masuk cek saldo = " + CekSaldo);
                 if (!"ERROR".equals(CekSaldo)) {
+                    hasil = "true";
+                    LogUtil.info(pluginName, "CekSaldo sukses");
                     if ("Intrabank".equals(type_integrasi)) {
+                        LogUtil.info(pluginName, "masuk Intrabank");
 //                        LogUtil.info(pluginName, "intra = ");
                         hasil = IntraBank(token, intra_bank_url, transaction_id, channel_id, partner_reference_no, amount,
                                 currency, beneficiary_account_no, remark, source_account_no, c_no_payment);
                     } else if ("Interbank".equals(type_integrasi)) {
+                        LogUtil.info(pluginName, "masuk Interbank");
                         hasil = InterBank(token, inter_bank_url, transaction_id, channel_id, partner_reference_no, amount, currency,
                                 beneficiary_account_name, beneficiary_account_no, beneficiary_bank_code, beneficiary_bank_name,
                                 source_account_no, c_no_payment);
 
                     } else if ("RTGS".equals(type_integrasi)) {
+                        LogUtil.info(pluginName, "masuk RTGS");
                         hasil = Rtgs(token, rtgs_url, transaction_id, channel_id, partner_reference_no, amount, currency, beneficiary_account_name,
                                 beneficiary_account_no, beneficiary_bank_code, beneficiary_bank_name,
                                 remark,
                                 source_account_no, c_no_payment);
 
                     } else {
+                        LogUtil.info(pluginName, "masuk SKN");
                         hasil = Skn(token, skn_url, transaction_id, channel_id, partner_reference_no, amount, currency, beneficiary_account_name,
                                 beneficiary_account_no, beneficiary_bank_code, beneficiary_bank_name,
                                 remark,
                                 source_account_no, c_no_payment);
                     }
+                }else{
+                    hasil = "ERROR";
                 }
 
+            }else{
+                hasil = "ERROR";
             }
+        }else{
+            hasil = "ERROR";
+        }
+        
+        
+        if ("ERROR".equals(hasil) ) {
+            respon_code = 400;
+        }else{
+             respon_code = 200;
         }
 
-        return new ApiResponse(200, hasil);
+        return new ApiResponse(respon_code, hasil);
 
     }
 
-    private String getToken(String token_urls, String c_no_payment) {
+    private String getToken(String token_urls, String c_no_payment, String transaction_id) {
         String val = "false";
         String log = "";
         HttpURLConnection con = null;
         BufferedReader reader = null;
         String token_url = token_urls;
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.of("+07:00"));
+        String formattedDate = now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
         try {
             // Endpoint URL
@@ -278,10 +322,20 @@ public class Integrasi extends ApiPluginAbstract {
             }
             LogUtil.info(pluginName, "Response Body token: " + response.toString());
             log = response.toString();
+//            insertLog(c_no_payment, log);
         } catch (Exception e) {
             LogUtil.error(pluginName, e, e.getMessage());
             log = e.getMessage().toString();
         } finally {
+            UpdateStatusIntegrasi(transaction_id, "ERROR");
+            Boolean statusLog = cekLogData(transaction_id);
+            if (statusLog) {
+
+                UpdateLogIntegrasi(transaction_id, formattedDate, "ERROR", "");
+            } else {
+                insertDataTransfer(transaction_id, formattedDate, "ERROR", "");
+            }
+
             if (reader != null) {
                 try {
                     reader.close();
@@ -292,7 +346,9 @@ public class Integrasi extends ApiPluginAbstract {
             if (con != null) {
                 con.disconnect();
             }
+//            insertLog(c_no_payment, log);
         }
+
         insertLog(c_no_payment, log);
         return val;
     }
@@ -308,7 +364,7 @@ public class Integrasi extends ApiPluginAbstract {
         String referenceNo = "";
         String log = "";
         String transactionDate = "";
-
+        String status_email = "";
         try {
             String url = intra_bank_url;
             URL obj = new URL(url);
@@ -378,7 +434,7 @@ public class Integrasi extends ApiPluginAbstract {
                     dataObj.put("responseCode", responseCodes);
                     dataObj.put("responseMessage", responseMessage);
                     dataObj.put("referenceNo", referenceNo);
-
+                    status_email = "Send";
                     result.put("data", dataObj);
                 } else {
                     dataObj.put("responseMessage", "ERROR");
@@ -407,17 +463,17 @@ public class Integrasi extends ApiPluginAbstract {
 //        LogUtil.info(pluginName, "wwwwwwwww=");
 
         Boolean statusLog = cekLogData(transaction_id);
-        LogUtil.info(pluginName, "statusLog = "+statusLog);
+        LogUtil.info(pluginName, "statusLog = " + statusLog);
         if (statusLog) {
-            UpdateLogIntegrasi(transaction_id, transactionDate, responseMessage);
+            UpdateLogIntegrasi(transaction_id, transactionDate, responseMessage, status_email);
         } else {
-            
-            insertDataTransfer(transaction_id, transactionDate, responseMessage);
+
+            insertDataTransfer(transaction_id, transactionDate, responseMessage, status_email);
         }
         UpdateStatusIntegrasi(transaction_id, responseMessage);
 
         insertLog(c_no_payment, log);
-        return result.toString();
+        return responseMessage;
     }
 
     private String InterBank(String token, String inter_bank_url, String transaction_id, String channel_id,
@@ -432,6 +488,7 @@ public class Integrasi extends ApiPluginAbstract {
         String referenceNo = "";
         String log = "";
         String transactionDate = "";
+        String status_email = "";
 
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.of("+07:00"));
         String formattedDate = now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
@@ -501,6 +558,7 @@ public class Integrasi extends ApiPluginAbstract {
                     responseMessage = innerData.getString("responseMessage");
                     referenceNo = innerData.getString("referenceNo");
                     transactionDate = formattedDate;
+                    status_email = "Send";
 
                     dataObj.put("responseCode", responseCodes);
                     dataObj.put("responseMessage", responseMessage);
@@ -534,15 +592,15 @@ public class Integrasi extends ApiPluginAbstract {
 
         Boolean statusLog = cekLogData(transaction_id);
         if (statusLog) {
-            
-            UpdateLogIntegrasi(transaction_id, transactionDate, responseMessage);
+
+            UpdateLogIntegrasi(transaction_id, transactionDate, responseMessage, status_email);
         } else {
-            insertDataTransfer(transaction_id, transactionDate, responseMessage);
+            insertDataTransfer(transaction_id, transactionDate, responseMessage, status_email);
         }
 
         UpdateStatusIntegrasi(transaction_id, responseMessage);
         insertLog(c_no_payment, log);
-        return result.toString();
+        return responseMessage;
     }
 
     private String Rtgs(String token, String rtgs_bank_url, String transaction_id, String channel_id, String partner_reference_no,
@@ -558,6 +616,7 @@ public class Integrasi extends ApiPluginAbstract {
         String referenceNo = "";
         String log = "";
         String transactionDate = "";
+        String status_email = "";
 
         try {
             String url = rtgs_bank_url;
@@ -629,6 +688,7 @@ public class Integrasi extends ApiPluginAbstract {
                     responseMessage = innerData.getString("responseMessage");
                     referenceNo = innerData.getString("referenceNo");
                     transactionDate = innerData.getString("transactionDate");
+                    status_email = "Send";
 
                     dataObj.put("responseCode", responseCodes);
                     dataObj.put("responseMessage", responseMessage);
@@ -661,16 +721,16 @@ public class Integrasi extends ApiPluginAbstract {
 
         Boolean statusLog = cekLogData(transaction_id);
         if (statusLog) {
-            
-           UpdateLogIntegrasi(transaction_id, transactionDate, responseMessage);
+
+            UpdateLogIntegrasi(transaction_id, transactionDate, responseMessage, status_email);
         } else {
-            insertDataTransfer(transaction_id, transactionDate, responseMessage);
-            
+            insertDataTransfer(transaction_id, transactionDate, responseMessage, status_email);
+
         }
 
         UpdateStatusIntegrasi(transaction_id, responseMessage);
         insertLog(c_no_payment, log);
-        return result.toString();
+        return responseMessage;
     }
 
     private String Skn(String token, String skn_bank_url, String transaction_id, String channel_id, String partner_reference_no,
@@ -686,6 +746,7 @@ public class Integrasi extends ApiPluginAbstract {
         String referenceNo = "";
         String log = "";
         String transactionDate = "";
+        String status_email = "";
 
         try {
             String url = skn_bank_url;
@@ -720,7 +781,7 @@ public class Integrasi extends ApiPluginAbstract {
             }
 
             int responseCode = con.getResponseCode();
-
+//            LogUtil.info(pluginName, "Response Body: " + response.toString());skn
             if (responseCode != 200) {
                 BufferedReader errorReader = new BufferedReader(new InputStreamReader(con.getErrorStream(), "UTF-8"));
                 StringBuilder errorResponse = new StringBuilder();
@@ -744,7 +805,7 @@ public class Integrasi extends ApiPluginAbstract {
                 response.append(inputLine);
             }
             in.close();
-//                LogUtil.info(pluginName, "Response Body: " + response.toString());
+                LogUtil.info(pluginName, "Response Body: " + response.toString());
             JSONObject jsonResponse = new JSONObject(response.toString());
             result.put("data", response.toString());
 
@@ -758,6 +819,7 @@ public class Integrasi extends ApiPluginAbstract {
                     responseMessage = innerData.getString("responseMessage");
                     referenceNo = innerData.getString("referenceNo");
                     transactionDate = innerData.getString("transactionDate");
+                    status_email = "Send";
 
                     dataObj.put("responseCode", responseCodes);
                     dataObj.put("responseMessage", responseMessage);
@@ -790,15 +852,15 @@ public class Integrasi extends ApiPluginAbstract {
 
         Boolean statusLog = cekLogData(transaction_id);
         if (statusLog) {
-            
-            UpdateLogIntegrasi(transaction_id, transactionDate, responseMessage);
+
+            UpdateLogIntegrasi(transaction_id, transactionDate, responseMessage, status_email);
         } else {
-            insertDataTransfer(transaction_id, transactionDate, responseMessage);
+            insertDataTransfer(transaction_id, transactionDate, responseMessage, status_email);
         }
 
         UpdateStatusIntegrasi(transaction_id, responseMessage);
         insertLog(c_no_payment, log);
-        return result.toString();
+        return responseMessage;
     }
 
     private void UpdateStatusIntegrasi(String id, String status) {
@@ -842,7 +904,7 @@ public class Integrasi extends ApiPluginAbstract {
         }
     }
 
-    private void insertDataTransfer(String id, String tgl, String status) {
+    private void insertDataTransfer(String id, String tgl, String status, String status_email) {
 
         Map<String, String> datas = GetData(id);
         String id_payment = datas.get("id");
@@ -860,7 +922,7 @@ public class Integrasi extends ApiPluginAbstract {
         String c_remark = datas.get("c_remark");
         String c_email = datas.get("c_email");
 
-        if ("Successful".equals(status)) {
+        if ("Send".equals(status_email)) {
             String kontenEmail = "<table align=\"center\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:20px auto; background:#ffffff; border:1px solid #ddd; border-radius:6px; font-family:Arial, sans-serif; font-size:14px; color:#333;\">\n"
                     + "  <tr>\n"
                     + "    <td style=\"background-color:#2a6ebb; color:#ffffff; padding:12px 20px; font-size:16px; font-weight:bold; border-radius:6px 6px 0 0;\">\n"
@@ -871,16 +933,16 @@ public class Integrasi extends ApiPluginAbstract {
                     + "    <td style=\"padding:20px; line-height:1.6;\">\n"
                     + "      <p style=\"margin:0 0 15px;\">We would like to inform you that your transaction has been successfully processed.</p>\n"
                     + "\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Date/Time:</strong> "+tgl+"</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Date/Time:</strong> " + tgl + "</p>\n"
                     + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Company:</strong> PT PELNI (Persero)</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Transaction Type:</strong> "+c_metode_transfer+"</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">From Account:</strong> "+from_account+"</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">To Account:</strong> "+to_account+"</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Beneficiary Bank:</strong> "+c_supplier_bank_nama+"</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Amount:</strong> IDR "+c_grand_total+"</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Reference Number:</strong> "+c_no_payment+"</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Remark:</strong> "+c_remark+"</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Payment Details:</strong> "+c_payment_details+"</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Transaction Type:</strong> " + c_metode_transfer + "</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">From Account:</strong> " + from_account + "</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">To Account:</strong> " + to_account + "</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Beneficiary Bank:</strong> " + c_supplier_bank_nama + "</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Amount:</strong> IDR " + c_grand_total + "</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Reference Number:</strong> " + c_no_payment + "</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Remark:</strong> " + c_remark + "</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Payment Details:</strong> " + c_payment_details + "</p>\n"
                     + "    </td>\n"
                     + "  </tr>\n"
                     + "  <tr>\n"
@@ -890,7 +952,7 @@ public class Integrasi extends ApiPluginAbstract {
                     + "    </td>\n"
                     + "  </tr>\n"
                     + "</table>";
-            String subjectEmail = "Pembayaran Berhasil - "+c_no_payment;
+            String subjectEmail = "Pembayaran Berhasil - " + c_no_payment;
             String toEmail = c_email;
 
             sendEmail(kontenEmail, subjectEmail, toEmail);
@@ -945,7 +1007,7 @@ public class Integrasi extends ApiPluginAbstract {
         }
     }
 
-    private void UpdateLogIntegrasi(String id, String tgl, String status) {
+    private void UpdateLogIntegrasi(String id, String tgl, String status, String status_email) {
         Map<String, String> datas = GetData(id);
         String c_supplier_bank_nama = datas.get("c_supplier_bank_nama");
         String c_no_payment = datas.get("c_no_payment");
@@ -957,7 +1019,7 @@ public class Integrasi extends ApiPluginAbstract {
         String c_remark = datas.get("c_remark");
         String c_email = datas.get("c_email");
 
-        if ("Successful".equals(status)) {
+        if ("Send".equals(status_email)) {
             String kontenEmail = "<table align=\"center\" width=\"600\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin:20px auto; background:#ffffff; border:1px solid #ddd; border-radius:6px; font-family:Arial, sans-serif; font-size:14px; color:#333;\">\n"
                     + "  <tr>\n"
                     + "    <td style=\"background-color:#2a6ebb; color:#ffffff; padding:12px 20px; font-size:16px; font-weight:bold; border-radius:6px 6px 0 0;\">\n"
@@ -968,16 +1030,16 @@ public class Integrasi extends ApiPluginAbstract {
                     + "    <td style=\"padding:20px; line-height:1.6;\">\n"
                     + "      <p style=\"margin:0 0 15px;\">We would like to inform you that your transaction has been successfully processed.</p>\n"
                     + "\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Date/Time:</strong> "+tgl+"</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Date/Time:</strong> " + tgl + "</p>\n"
                     + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Company:</strong> PT PELNI (Persero)</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Transaction Type:</strong> "+c_metode_transfer+"</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">From Account:</strong> "+from_account+"</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">To Account:</strong> "+to_account+"</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Beneficiary Bank:</strong> "+c_supplier_bank_nama+"</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Amount:</strong> IDR "+c_grand_total+"</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Reference Number:</strong> "+c_no_payment+"</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Remark:</strong> "+c_remark+"</p>\n"
-                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Payment Details:</strong> "+c_payment_details+"</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Transaction Type:</strong> " + c_metode_transfer + "</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">From Account:</strong> " + from_account + "</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">To Account:</strong> " + to_account + "</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Beneficiary Bank:</strong> " + c_supplier_bank_nama + "</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Amount:</strong> IDR " + c_grand_total + "</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Reference Number:</strong> " + c_no_payment + "</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Remark:</strong> " + c_remark + "</p>\n"
+                    + "      <p style=\"margin:0 0 8px;\"><strong style=\"display:inline-block; width:160px;\">Payment Details:</strong> " + c_payment_details + "</p>\n"
                     + "    </td>\n"
                     + "  </tr>\n"
                     + "  <tr>\n"
@@ -987,7 +1049,7 @@ public class Integrasi extends ApiPluginAbstract {
                     + "    </td>\n"
                     + "  </tr>\n"
                     + "</table>";
-            String subjectEmail = "Pembayaran Berhasil - "+c_no_payment;
+            String subjectEmail = "Pembayaran Berhasil - " + c_no_payment;
             String toEmail = c_email;
 
             sendEmail(kontenEmail, subjectEmail, toEmail);
@@ -1077,12 +1139,14 @@ public class Integrasi extends ApiPluginAbstract {
         return resultMap;
     }
 
-    private String CekRekening(String token, String transaction_id_val, String channel_id,
+    private String CekRekeningInternal(String token, String transaction_id_val, String channel_id,
             String partner_reference_no_val, String beneficiary_account_no_val,
             String c_no_payment, String cek_rekening_url, String account_name) {
 
         String result = ""; // root JSON
         String log = "";
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.of("+07:00"));
+         String formattedDate = now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
         JSONObject dataObj = new JSONObject(); // isi data
 
         try {
@@ -1161,6 +1225,125 @@ public class Integrasi extends ApiPluginAbstract {
             log = response.toString();
         } catch (Exception e) {
             result = "ERROR";
+            
+            UpdateStatusIntegrasi(transaction_id_val, "ERROR");
+            Boolean statusLog = cekLogData(transaction_id_val);
+            if (statusLog) {
+
+                UpdateLogIntegrasi(transaction_id_val, formattedDate, "ERROR", "");
+            } else {
+                insertDataTransfer(transaction_id_val, formattedDate, "ERROR", "");
+            }
+
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            LogUtil.info(pluginName, "Detail error lengkap:\n" + sw.toString());
+            log = sw.toString();
+        }
+        
+        
+
+        insertLog(c_no_payment, log);
+        return result;
+    }
+
+    private String CekRekeningExternal(String token, String transaction_id_val, String channel_id,
+            String partner_reference_no_val, String beneficiary_account_no_val,
+            String c_no_payment, String cek_rekening_url, String account_name, String bank_code) {
+
+        String result = ""; // root JSON
+        String log = "";
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.of("+07:00"));
+         String formattedDate = now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        JSONObject dataObj = new JSONObject(); // isi data
+
+        try {
+            String url = cek_rekening_url;
+            URL obj = new URL(url);
+            HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+
+            con.setRequestMethod("POST");
+            con.setRequestProperty("accept", "application/json");
+            con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+
+            String urlParameters
+                    = "token=" + token
+                    + "&transaction_id=" + transaction_id_val
+                    + "&channel_id=" + channel_id
+                    + "&partner_reference_no=" + partner_reference_no_val
+                    + "&beneficiary_bank_code =" + bank_code
+                    + "&beneficiary_account_no=" + beneficiary_account_no_val;
+
+            con.setDoOutput(true);
+            try (DataOutputStream wr = new DataOutputStream(con.getOutputStream())) {
+                wr.writeBytes(urlParameters);
+                wr.flush();
+            }
+
+            int responseCode = con.getResponseCode();
+
+            if (responseCode != 200) {
+                BufferedReader errorReader = new BufferedReader(new InputStreamReader(con.getErrorStream(), "UTF-8"));
+                StringBuilder errorResponse = new StringBuilder();
+                String line;
+                while ((line = errorReader.readLine()) != null) {
+                    errorResponse.append(line);
+                }
+                errorReader.close();
+
+                result = "ERROR";
+                return result;
+            }
+
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream(), "UTF-8"));
+            String inputLine;
+            StringBuilder response = new StringBuilder();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+            LogUtil.info(pluginName, "Response Body: " + response.toString());
+            JSONObject jsonResponse = new JSONObject(response.toString());
+
+            if (jsonResponse.getBoolean("status")) {
+                JSONObject data = jsonResponse.getJSONObject("data");
+                if (data.getBoolean("status")) {
+                    JSONObject innerData = data.getJSONObject("data");
+                    String nama = innerData.getString("beneficiaryAccountName");
+                    String status = innerData.getString("beneficiaryAccountStatus");
+
+                    if ("Rekening aktif".equals(status)) {
+                        if (nama.equals(account_name)) {
+                            result = "Successful";
+                            LogUtil.info(pluginName, " nama= " + nama);
+                            LogUtil.info(pluginName, " account_name= " + account_name);
+                        } else {
+                            result = "ERROR";
+                        }
+                    } else {
+                        result = "ERROR";
+                    }
+
+                } else {
+                    result = "ERROR";
+                }
+            } else {
+                result = "ERROR";
+            }
+            log = response.toString();
+        } catch (Exception e) {
+            result = "ERROR";
+            
+            UpdateStatusIntegrasi(transaction_id_val, "ERROR");
+            Boolean statusLog = cekLogData(transaction_id_val);
+            if (statusLog) {
+
+                UpdateLogIntegrasi(transaction_id_val, formattedDate, "ERROR", "");
+            } else {
+                insertDataTransfer(transaction_id_val, formattedDate, "ERROR", "");
+            }
 
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
@@ -1214,6 +1397,8 @@ public class Integrasi extends ApiPluginAbstract {
 
         String result = ""; // root JSON
         String log = "";
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.of("+07:00"));
+         String formattedDate = now.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
         JSONObject dataObj = new JSONObject(); // isi data
 
         try {
@@ -1299,6 +1484,15 @@ public class Integrasi extends ApiPluginAbstract {
             log = response.toString();
         } catch (Exception e) {
             result = "ERROR";
+            
+            UpdateStatusIntegrasi(transaction_id_val, "ERROR");
+            Boolean statusLog = cekLogData(transaction_id_val);
+            if (statusLog) {
+
+                UpdateLogIntegrasi(transaction_id_val, formattedDate, "ERROR", "");
+            } else {
+                insertDataTransfer(transaction_id_val, formattedDate, "ERROR", "");
+            }
 
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
@@ -1347,6 +1541,34 @@ public class Integrasi extends ApiPluginAbstract {
         variableMap.put("subjectEmail", subjectEmail);
         variableMap.put("toEmail", toEmail);
         wm.processStart("ebilling_apps:latest:sendEmailSupplier", variableMap);
+    }
+
+    private String getBank_code(String bank) {
+        String ret = "";
+        WorkflowUserManager wum = (WorkflowUserManager) AppUtil.getApplicationContext().getBean("workflowUserManager");
+        String currentUser = wum.getCurrentUsername();
+        String query = "SELECT c_bank_code\n"
+                + "FROM app_fd_ebill_mcm_banks\n"
+                + "WHERE c_bank_name = ? \n"
+                + "LIMIT 1";
+        DataSource ds = (DataSource) AppUtil.getApplicationContext().getBean("setupDataSource");
+
+        try (Connection con = ds.getConnection();
+                PreparedStatement ps = con.prepareStatement(query)) {
+
+            ps.setString(1, bank);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    ret = rs.getString("c_bank_code");
+                }
+            }
+
+        } catch (Exception ex) {
+            LogUtil.error(getClass().getName(), ex, "Error executing query: " + query);
+        }
+//LogUtil.info(getClass().getName(), "ret = "+ret);
+        return ret;
     }
 
 }

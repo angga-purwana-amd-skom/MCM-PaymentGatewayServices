@@ -14,6 +14,12 @@
       "type": "textfield",
       "required": "true",
       "description" : "https://ms-ebilling-v8-dev.pelni.co.id/mcm/account_inquiry_internal"
+    },{
+      "name": "account_inquiry_external_url",
+      "label": "Account Inquiry External URL",
+      "type": "textfield",
+      "required": "true",
+      "description" : "https://ms-ebilling-v8-dev.pelni.co.id/mcm/account_inquiry_external"
     },
     {
       "name": "transaction_id",
@@ -49,6 +55,11 @@
     {
       "name": "email",
       "label": "Email",
+      "type": "textfield",
+      "required": "true"
+    },{
+      "name": "bank_name",
+      "label": "Bank Name",
       "type": "textfield",
       "required": "true"
     },

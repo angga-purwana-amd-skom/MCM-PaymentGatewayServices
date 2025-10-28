@@ -26,6 +26,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import org.joget.apps.form.model.Form;
+import org.joget.workflow.model.service.WorkflowUserManager;
 
 /**
  *
@@ -52,9 +53,26 @@ public class CekRekening extends FormValidator {
         String email = getPropertyString("email");
         Element emailElement = FormUtil.findElement(email, form, fd);
         String email_val = FormUtil.getElementPropertyValue(emailElement, fd);
+        
+        String bank_name = getPropertyString("bank_name");
+        Element bank_nameElement = FormUtil.findElement(bank_name, form, fd);
+        String bank_name_val = FormUtil.getElementPropertyValue(bank_nameElement, fd);
+        
+        
+        String status ="";
+        
+        String bank_code = getBank_code(bank_name_val);
+        String cekRekening = "";
+
+        if ("008".equals(bank_code)) {
+            status = CekRekeningInternal(getToken(), fd, element);
+        } else {
+            status = CekRekeningExternal(getToken(), fd, element,bank_code);
+        }
+
 
 //        String status = CekRekening(getToken(), fd, element);
-        String status = CekRekening(getToken(), fd, element);
+//         status = CekRekeningInternal(getToken(), fd, element);
         LogUtil.info(message, "status = " + status);
         if (!"".equals(email_val)) {
             if ("ERROR".equals(status)) {
@@ -231,7 +249,7 @@ public class CekRekening extends FormValidator {
         return val;
     }
 
-    private String CekRekening(String token, FormData fd, Element element) {
+    private String CekRekeningInternal(String token, FormData fd, Element element) {
         String val = "";
         Form form = FormUtil.findRootForm(element);
         String account_inquiry_internal_url = getPropertyString("account_inquiry_internal_url");
@@ -357,5 +375,160 @@ public class CekRekening extends FormValidator {
 
         return val;
     }
+    
+    private String CekRekeningExternal(String token, FormData fd, Element element,String bank_code) {
+        String val = "";
+        Form form = FormUtil.findRootForm(element);
+        String account_inquiry_external_url = getPropertyString("account_inquiry_external_url");
 
+        String transaction_id = getPropertyString("transaction_id");
+        Element transaction_idElement = FormUtil.findElement(transaction_id, form, fd);
+        String transaction_id_val = FormUtil.getElementPropertyValue(transaction_idElement, fd);
+
+        String channel_id = getPropertyString("channel_id");
+
+        String partner_reference_no = getPropertyString("partner_reference_no");
+        Element partner_reference_noElement = FormUtil.findElement(partner_reference_no, form, fd);
+        String partner_reference_no_val = FormUtil.getElementPropertyValue(partner_reference_noElement, fd);
+
+        String beneficiary_account_no = getPropertyString("beneficiary_account_no");
+        Element beneficiary_account_noElement = FormUtil.findElement(beneficiary_account_no, form, fd);
+        String beneficiary_account_no_val = FormUtil.getElementPropertyValue(beneficiary_account_noElement, fd);
+
+        String account_name = getPropertyString("account_name");
+        Element account_nameElement = FormUtil.findElement(account_name, form, fd);
+        String account_nameval = FormUtil.getElementPropertyValue(account_nameElement, fd);
+
+        LogUtil.info(pluginName, "account_inquiry_external_url: " + account_inquiry_external_url);
+        LogUtil.info(pluginName, "transaction_id_val: " + transaction_id_val);
+        LogUtil.info(pluginName, "channel_id: " + channel_id);
+        LogUtil.info(pluginName, "partner_reference_no_val: " + partner_reference_no_val);
+        LogUtil.info(pluginName, "beneficiary_account_no_val: " + beneficiary_account_no_val);
+        LogUtil.info(pluginName, "account_nameval: " + account_nameval);
+
+        if (!"false".equals(token)) {
+
+            try {
+                // Endpoint API
+                String url = account_inquiry_external_url;
+                URL obj = new URL(url);
+                HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+
+                // Set method POST
+                con.setRequestMethod("POST");
+
+                // Tambahkan header
+                con.setRequestProperty("accept", "application/json");
+                con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+
+                // Data yang dikirim (body request)
+                String urlParameters
+                        = "token=" + token
+                        + "&transaction_id=" + transaction_id_val
+                        + "&channel_id=" + channel_id
+                        + "&partner_reference_no=" + partner_reference_no_val
+                        + "&beneficiary_bank_code=" + bank_code
+                        + "&beneficiary_account_no=" + beneficiary_account_no_val;
+
+                // Kirim request body
+                con.setDoOutput(true);
+                try (DataOutputStream wr = new DataOutputStream(con.getOutputStream())) {
+                    wr.writeBytes(urlParameters);
+                    wr.flush();
+                }
+
+                // Ambil response code
+                int responseCode = con.getResponseCode();
+//        LogUtil.info(pluginName, "Response Code : " + responseCode);
+
+                // Jika response bukan 200, baca error stream dan log
+                if (responseCode != 200) {
+                    BufferedReader errorReader = new BufferedReader(new InputStreamReader(con.getErrorStream(), "UTF-8"));
+                    StringBuilder errorResponse = new StringBuilder();
+                    String line;
+                    while ((line = errorReader.readLine()) != null) {
+                        errorResponse.append(line);
+                    }
+                    errorReader.close();
+
+                    LogUtil.info(pluginName, errorResponse.toString());
+                    val = "ERROR"; // atau isi sesuai kebutuhan
+                    return val;
+                }
+
+                // Baca response body jika responseCode == 200
+                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream(), "UTF-8"));
+                String inputLine;
+                StringBuilder response = new StringBuilder();
+
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
+
+                // Log response
+                LogUtil.info(pluginName, "Response Body: " + response.toString());
+
+                // Parsing JSON untuk ambil beneficiaryAccountStatus
+                JSONObject jsonResponse = new JSONObject(response.toString());
+                if (jsonResponse.getBoolean("status")) {
+                    JSONObject data = jsonResponse.getJSONObject("data");
+                    if (data.getBoolean("status")) {
+                        JSONObject innerData = data.getJSONObject("data");
+                        val = innerData.getString("beneficiaryAccountStatus");
+                        String nama = innerData.getString("beneficiaryAccountName");
+                        LogUtil.info(pluginName, "nama : " + nama);
+                        if (nama.equals(account_nameval)) {
+                            val = val + "-Sesuai";
+                        } else {
+                            val = val + "-Tidak Sesuai";
+                        }
+                    } else {
+                        LogUtil.warn(pluginName, "Status false pada level data JSON");
+                        val = "STATUS_FALSE";
+                    }
+                } else {
+                    LogUtil.warn(pluginName, "Status false dari response JSON utama");
+                    val = "STATUS_FALSE";
+                }
+
+            } catch (Exception e) {
+                LogUtil.error(pluginName, e, e.getMessage());
+                e.printStackTrace();
+                val = "EXCEPTION";
+            }
+        } else {
+            val = "ERROR";
+        }
+
+        return val;
+    }
+    
+    private String getBank_code(String bank) {
+        String ret = "";
+        WorkflowUserManager wum = (WorkflowUserManager) AppUtil.getApplicationContext().getBean("workflowUserManager");
+        String currentUser = wum.getCurrentUsername();
+        String query = "SELECT c_bank_code\n"
+                + "FROM app_fd_ebill_mcm_banks\n"
+                + "WHERE c_bank_name = ? \n"
+                + "LIMIT 1";
+        DataSource ds = (DataSource) AppUtil.getApplicationContext().getBean("setupDataSource");
+
+        try (Connection con = ds.getConnection();
+                PreparedStatement ps = con.prepareStatement(query)) {
+
+            ps.setString(1, bank);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    ret = rs.getString("c_bank_code");
+                }
+            }
+
+        } catch (Exception ex) {
+            LogUtil.error(getClass().getName(), ex, "Error executing query: " + query);
+        }
+//LogUtil.info(getClass().getName(), "ret = "+ret);
+        return ret;
+    }
 }
