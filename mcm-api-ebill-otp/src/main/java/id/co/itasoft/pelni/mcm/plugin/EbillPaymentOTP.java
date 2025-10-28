@@ -124,6 +124,42 @@ public class EbillPaymentOTP extends ApiPluginAbstract {
         }
     }
 
+    private static List<String> getAllEmailsByCurrentUsername(DataSource ds) throws SQLException {
+        List<String> emails = new ArrayList<>();
+        String username = WorkflowUtil.getCurrentUsername();
+
+        if (username == null || username.isEmpty()) {
+            LogUtil.warn("EBILL-OTP", "Current username kosong; skip deactivation.");
+            return emails; // return empty list
+        }
+
+        // Example query: get emails of users related to a record or process
+        String sql = "SELECT u.email "
+                + "FROM dir_user u "
+                + "WHERE u.username = ? "
+                + "AND u.email IS NOT NULL "
+                + "AND u.email <> ''";
+
+        try (Connection conn = ds.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    emails.add(rs.getString("email"));
+                }
+            }
+        } catch (SQLException e) {
+            LogUtil.error("EBILL-OTP", e, "Gagal mendapatkan email user: " + username);
+            throw e;
+        }
+
+        // Log result
+        LogUtil.info("EBILL-OTP", "getAllEmailsByCurrentUsername -> username=" + username + ", total=" + emails.size());
+
+        return emails;
+    }
+
     @Operation(
             path = "/resend_otp",
             type = Operation.MethodType.POST,
@@ -485,7 +521,7 @@ public class EbillPaymentOTP extends ApiPluginAbstract {
             path = "/validate_otp_on_payment_release",
             type = Operation.MethodType.POST,
             summary = "Validate OTP on Payment Release",
-            description = "Validate OTP for app_fd_ebill_payment_req with lock & user deactivation logic"
+            description = "Validate OTP for app_fd_ebill_payment_req with lock and user deactivation logic"
     )
     @Responses({
         @Response(responseCode = 200, description = "OK"),
@@ -512,6 +548,8 @@ public class EbillPaymentOTP extends ApiPluginAbstract {
                 return new ApiResponse(400, fail("OTP_FORMAT", "Format OTP tidak valid. Gunakan 6 karakter alfanumerik."));
             }
 
+            LogUtil.info(getClass().getName(), "recordId : " + recordId + ", inputOtp : " + inputOtp);
+
             // --- DB setup
             DataSource ds = (DataSource) AppUtil.getApplicationContext().getBean("setupDataSource");
 
@@ -525,7 +563,7 @@ public class EbillPaymentOTP extends ApiPluginAbstract {
                 // 1) Select current OTP data
                 try (PreparedStatement ps = con.prepareStatement(
                         "SELECT c_otp_status, c_otp_data, c_otp_expiry_at, c_otp_error_count "
-                        + "FROM " + TABLE + " WHERE id = ?")) {
+                        + "FROM " + TABLE + " WHERE c_no_payment = ?")) {
                     ps.setString(1, recordId);
                     try (ResultSet rs = ps.executeQuery()) {
                         if (!rs.next()) {
@@ -535,6 +573,9 @@ public class EbillPaymentOTP extends ApiPluginAbstract {
                         storedOtpHashB64 = rs.getString("c_otp_data");
                         expiryAt = toLong(rs.getString("c_otp_expiry_at"), 0L);
                         errorCount = toInt(rs.getString("c_otp_error_count"), 0);
+
+                        LogUtil.info(getClass().getName(), "c_otp_status : " + status + ", c_otp_data : " + storedOtpHashB64 + ", c_otp_expiry_at : " + expiryAt
+                                + "\n, c_otp_error_count : " + errorCount);
                     }
                 }
 
@@ -610,6 +651,261 @@ public class EbillPaymentOTP extends ApiPluginAbstract {
         }
     }
 
+    @Operation(
+            path = "/resend_otp_on_release_payment",
+            type = Operation.MethodType.POST,
+            summary = "Generate & Resend OTP via Email on Release",
+            description = "Resend OTP dengan limitasi waktu & counter on Release"
+    )
+    @Responses({
+        @Response(responseCode = 200, description = "OK"),
+        @Response(responseCode = 400, description = "Bad Request"),
+        @Response(responseCode = 404, description = "Not Found"),
+        @Response(responseCode = 500, description = "Internal Error")
+    })
+    public ApiResponse resendOtpOnReleasePayment(
+            @Param(value = "record_id", description = "Primary Key form record") String recordId
+    ) {
+        try {
+            if (recordId == null || recordId.trim().isEmpty()) {
+                return new ApiResponse(400, error("Missing 'record_id'"));
+            }
+
+            long now = System.currentTimeMillis();
+
+            DataSource ds = (DataSource) AppUtil.getApplicationContext().getBean("setupDataSource");
+            ApplicationContext appContext = AppUtil.getApplicationContext();
+            EnvironmentVariableDao environmentVariableDao = (EnvironmentVariableDao) appContext.getBean("environmentVariableDao");
+            AppDefinition appDef = AppUtil.getCurrentAppDefinition();
+
+            String str_otp_expire_time = "";
+            String str_otp_resend_cooldown_time = "";
+            Collection<EnvironmentVariable> environmentVariableList = environmentVariableDao.getEnvironmentVariableList(null, appDef, null, null, null, null);
+            // Iterasi melalui daftar untuk menemukan variabel yang diinginkan
+            if (environmentVariableList != null && !environmentVariableList.isEmpty()) {
+                int varFoundCount = 0;
+                for (EnvironmentVariable envVar : environmentVariableList) {
+                    if (envVar.getId().equals("otp_expire_time")) {
+                        str_otp_expire_time = envVar.getValue();
+                        varFoundCount++;
+                        if (varFoundCount >= 2) {
+                            break;
+                        }
+                    }
+                    if (envVar.getId().equals("otp_resend_cooldown_time")) {
+                        str_otp_resend_cooldown_time = envVar.getValue();
+                        varFoundCount++;
+                        if (varFoundCount >= 2) {
+                            break;
+                        }
+                    }
+                }
+            }
+            try (Connection con = ds.getConnection()) {
+
+                // Ambil state terkini
+                String selectSql
+                        = "SELECT c_otp_status, c_otp_data, c_otp_expiry_at, c_otp_last_sent_time, "
+                        + "       c_otp_resend_count, c_otp_error_count, c_otp_first_sent_time, "
+                        + "       c_otp_resend_inactive_until "
+                        + "FROM " + TABLE + " WHERE c_no_payment = ?";
+                String status;
+                String otpData;
+                long expiryAt, lastSent, firstSent, inactiveUntil;
+                int resendCount, errorCount;
+
+                try (PreparedStatement ps = con.prepareStatement(selectSql)) {
+                    ps.setString(1, recordId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            return new ApiResponse(404, error("Record not found"));
+                        }
+
+                        status = nz(rs.getString(1), "");
+                        otpData = rs.getString(2);
+                        expiryAt = toLong(rs.getString(3), 0L);
+                        lastSent = toLong(rs.getString(4), 0L);
+                        resendCount = toInt(rs.getString(5), 0);
+                        errorCount = toInt(rs.getString(6), 0);
+                        firstSent = toLong(rs.getString(7), 0L);
+                        inactiveUntil = toLong(rs.getString(8), 0L);
+
+                    }
+                }
+
+                // 1) Cek inaktif (cooldown)
+                if (inactiveUntil > now) {
+                    long sisa = (inactiveUntil - now) / 1000L;
+                    return new ApiResponse(200, fail("RESEND_INACTIVE", "Resend OTP sedang tidak aktif. Coba lagi "
+                            + "dalam " + sisa + " detik."));
+                }
+
+                // 2) Jeda minimal 2 menit dari lastSent
+                if (lastSent > 0L && (now - lastSent) <= MIN_INTERVAL_MS) {
+                    return new ApiResponse(200, fail("TOO_FREQUENT",
+                            "Terlalu sering. Minimal jeda 2 menit antar kirim."));
+                }
+
+                // 3) Window 15 menit & counter
+                if (firstSent == 0L || (now - firstSent) > WINDOW_MS) {
+                    // Reset window: mulai yang baru, hitung percobaan ini sebagai 1
+                    firstSent = now;
+                    resendCount = 1;
+                } else {
+                    // Masih dalam window
+                    if (resendCount >= RESEND_LIMIT) {
+                        if (str_otp_resend_cooldown_time != null && !str_otp_resend_cooldown_time.isEmpty()) {
+                            long cooldownMinutes = Long.parseLong(str_otp_resend_cooldown_time);
+                            COOLDOWN_MS = cooldownMinutes * 60_000L;
+                        }
+                        // Lock resend colldown menit ke depan
+                        long until = now + COOLDOWN_MS;
+                        String lockSql
+                                = "UPDATE " + TABLE + " SET c_otp_resend_inactive_until=?, c_otp_status=? WHERE c_no_payment=?";
+                        try (PreparedStatement ps = con.prepareStatement(lockSql)) {
+                            ps.setString(1, String.valueOf(until));
+                            ps.setString(2, "INVALID"); // opsional: tandai invalid saat cooldown
+                            ps.setString(3, recordId);
+                            ps.executeUpdate();
+                        }
+                        return new ApiResponse(200, fail("RESEND_LIMIT_REACHED",
+                                "Batas resend 3x dalam 15 menit tercapai. Resend dinonaktifkan 15 menit."));
+                    } else {
+                        resendCount += 1;
+                    }
+                }
+
+                // 4) Generate OTP baru + hash & set expiry 5 menit
+                String otpPlain = genOtp(6);
+                String otpHash = sha256B64(otpPlain);
+
+                if (str_otp_expire_time != null && !str_otp_expire_time.isEmpty()) {
+                    long expireMinutes = Long.parseLong(str_otp_expire_time);
+                    TTL_MS = expireMinutes * 60_000L;
+                }
+
+                long expiryNew = now + TTL_MS;
+
+                // 5) Update DB
+                String updateSql
+                        = "UPDATE " + TABLE + " "
+                        + "SET c_otp_data=?, c_otp_expiry_at=?, c_otp_last_sent_time=?, "
+                        + "    c_otp_status=?, c_otp_error_count=?, c_otp_resend_count=?, "
+                        + "    c_otp_first_sent_time=?, c_otp_resend_inactive_until=? "
+                        + "WHERE c_no_payment=?";
+                try (PreparedStatement ps = con.prepareStatement(updateSql)) {
+                    ps.setString(1, otpHash);
+                    ps.setString(2, String.valueOf(expiryNew));
+                    ps.setString(3, String.valueOf(now));
+                    ps.setString(4, "ACTIVE");
+                    ps.setString(5, "0");
+                    ps.setString(6, String.valueOf(resendCount));
+                    ps.setString(7, String.valueOf(firstSent));
+                    ps.setString(8, "0"); // aktif kembali
+                    ps.setString(9, recordId);
+                    ps.executeUpdate();
+                }
+
+                // 6) Kirim email via sub-modul
+                String subject = "[OTP] Kode verifikasi Anda";
+
+                ZonedDateTime nowEmail = ZonedDateTime.now();
+                DateTimeFormatter fmt = DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm:ss (z,XXX)", new Locale("id", "ID"));
+                String formattedNow = nowEmail.format(fmt);
+
+                LogUtil.info(getClass().getName(), "Tanggal sekarang: " + formattedNow);
+
+                String body = "<html lang=\"id\">\n"
+                        + "<head>\n"
+                        + "    <meta charset=\"UTF-8\">\n"
+                        + "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+                        + "    <title>Notifikasi OTP</title>\n"
+                        + "    <style>\n"
+                        + "        body {\n"
+                        + "            font-family: Arial, sans-serif;\n"
+                        + "            text-align: center;\n"
+                        + "            padding: 20px;\n"
+                        + "            background-color: #f8f9fa;\n"
+                        + "        }\n"
+                        + "        .container {\n"
+                        + "            max-width: 400px;\n"
+                        + "            background: white;\n"
+                        + "            padding: 20px;\n"
+                        + "            border-radius: 8px;\n"
+                        + "            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);\n"
+                        + "            margin: auto;\n"
+                        + "        }\n"
+                        + "        h1 {\n"
+                        + "            color: #333;\n"
+                        + "            font-size: 24px;\n"
+                        + "        }\n"
+                        + "        .otp {\n"
+                        + "            font-size: 22px;\n"
+                        + "            font-weight: bold;\n"
+                        + "            color: #d9534f;\n"
+                        + "        }\n"
+                        + "        .important {\n"
+                        + "            font-weight: bold;\n"
+                        + "        }\n"
+                        + "        .footer {\n"
+                        + "            font-size: 14px;\n"
+                        + "            color: #777;\n"
+                        + "            margin-top: 20px;\n"
+                        + "        }\n"
+                        + "    </style>\n"
+                        + "</head>\n"
+                        + "<body>\n"
+                        + "    <div class=\"container\">\n"
+                        + "        <h1>Halo,</h1>\n"
+                        + "        <p>Untuk melanjutkan transaksi, silakan gunakan kode OTP berikut:</p>\n"
+                        + "        <p class=\"otp\">" + otpPlain + "</p>\n"
+                        + "        <p>Kode ini berlaku selama <span class=\"important\">5 menit</span>. Mohon untuk tidak membagikan kode ini kepada siapa pun, termasuk pihak Pelni.</p>\n"
+                        + "        <p><span class=\"important\">Tanggal/Jam:</span> " + formattedNow + "</p>\n"
+                        + "        <p class=\"footer\">Email ini dikirim secara otomatis, mohon untuk tidak membalas.<br>\n"
+                        + "        Jika Anda tidak merasa melakukan transaksi ini, abaikan pemberitahuan ini.</p>\n"
+                        + "        <p class=\"footer\" style=\"font-size: 16px;\"><strong>Terima kasih,</strong><br>\n"
+                        + "        Pelni</p>\n"
+                        + "    </div>\n"
+                        + "</body>\n"
+                        + "</html>";
+
+                LogUtil.info(getClass().getName(), "Kode OTP Anda: " + otpPlain);
+
+                // recordId kamu = processId
+                List<String> emails = getAllEmailsByCurrentUsername(ds);
+
+                if (emails.isEmpty()) {
+                    LogUtil.warn(getClass().getName(), "[OTP] Tidak ada assignee aktif untuk processId=" + recordId);
+                    return new ApiResponse(500, error("Internal server error"));
+                } else {
+                    for (String e : emails) {
+                        LogUtil.info(getClass().getName(), "Participant OTP rilis email = " + e);
+                        sendOtpEmail(e, subject, body);
+                    }
+                }
+
+                // 7) JSON sukses
+                JSONObject ok = new JSONObject();
+                ok.put("success", true);
+                ok.put("message", "OTP terkirim");
+                ok.put("resend_count", resendCount);
+                ok.put("window_first_sent_at", firstSent);
+                ok.put("expires_at", expiryNew);
+                return new ApiResponse(200, ok);
+            } catch (SQLException e) {
+                LogUtil.error(getClass().getName(), e, "Resend OTP Rilis error: " + e.getMessage());
+                return new ApiResponse(500, error("Internal server error"));
+            } catch (NumberFormatException e) {
+                LogUtil.error(getClass().getName(), e, "Resend OTP Rilis error: " + e.getMessage());
+                return new ApiResponse(500, error("Internal server error"));
+            }
+
+        } catch (Exception e) {
+            LogUtil.error(getClass().getName(), e, "Resend OTP Rilis error: " + e.getMessage());
+            return new ApiResponse(500, error("Internal server error"));
+        }
+    }
+
     // =========================================================
     // ================== INTERNAL HELPERS =====================
     // =========================================================
@@ -627,7 +923,7 @@ public class EbillPaymentOTP extends ApiPluginAbstract {
             sql.append("c_").append(k).append("=?");
             i++;
         }
-        sql.append(" WHERE id = ?");
+        sql.append(" WHERE c_no_payment = ?");
 
         try (PreparedStatement ps = con.prepareStatement(sql.toString())) {
             int idx = 1;
